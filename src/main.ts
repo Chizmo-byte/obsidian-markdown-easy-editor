@@ -27,7 +27,7 @@ const BASIC_BUTTONS: ReadonlyArray<ToolbarAction> = [
 ];
 
 const MORE_BUTTONS: ReadonlyArray<ToolbarAction> = [
-  { kind: "wrap", marker: "`", symbol: "`", label: "インラインコード", shortcut: "`code`", tip: "選択範囲をインラインコードにします。" },
+  { kind: "insert", snippet: "`code`", symbol: "`", label: "インラインコード", shortcut: "`code`", tip: "選択範囲をインラインコードにします。" },
   { kind: "insert", snippet: "```text\nここにコード\n```", symbol: "```", label: "コードブロック", shortcut: "```code```", tip: "複数行のコードを表示します。" },
   { kind: "insert", snippet: "| 項目 | 内容 |\n| --- | --- |\n| 例 | 説明 |", symbol: "|", label: "表", shortcut: "| 項目 | 内容 |", tip: "項目を行と列で比較・整理します。" },
   { kind: "insert", snippet: "- [ ] やること", symbol: "[ ]", label: "チェック", shortcut: "- [ ] TODO", tip: "作業の完了・未完了をチェックリストで管理します。" },
@@ -112,14 +112,6 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
 
     this.addRibbonIcon("pencil", "Markdown Easy Editor", () => {
       this.activateToolbarView();
-    });
-
-    this.addCommand({
-      id: "show-status",
-      name: "Show status",
-      callback: () => {
-        new Notice("Markdown Easy Editor is ready.");
-      }
     });
 
     this.addCommand({
@@ -236,10 +228,36 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
         }
       } 
       else if (action.kind === "insert") {
+        // インラインコードは選択範囲があれば従来どおりバッククォートで挟む
+        if (action.label === "インラインコード" && selection && selection.length > 0) {
+          const startPos = editor.getCursor("from");
+          editor.replaceSelection(`\`${selection}\``);
+          editor.setSelection(
+            { line: startPos.line, ch: startPos.ch + 1 },
+            { line: startPos.line, ch: startPos.ch + 1 + selection.length }
+          );
+          if (markdownView.leaf) {
+            this.app.workspace.setActiveLeaf(markdownView.leaf, { focus: true });
+          }
+          return;
+        }
+
         const snippet = action.snippet;
         editor.replaceSelection(snippet);
-        
-        if (action.label === "コードブロック") {
+
+        if (action.label === "インラインコード") {
+          // 空のインラインコードはライブプレビューでカーソル位置がずれるため、
+          // プレースホルダー `code` を挿入して選択状態にする
+          const cursorAfter = editor.getCursor();
+          const currentLine = editor.getLine(cursorAfter.line);
+          const start = currentLine.lastIndexOf("`code`", cursorAfter.ch);
+          if (start !== -1) {
+            editor.setSelection(
+              { line: cursorAfter.line, ch: start + 1 },
+              { line: cursorAfter.line, ch: start + 5 }
+            );
+          }
+        } else if (action.label === "コードブロック") {
           const lineIdx = editor.getCursor().line;
           const targetLineIdx = lineIdx - 1; 
           if (targetLineIdx >= 0) {
