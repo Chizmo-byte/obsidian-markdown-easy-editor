@@ -129,28 +129,31 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
         this.optimizeSelection();
       }
     });
-
-    console.log("Loading Markdown Easy Editor");
   }
 
   async activateToolbarView() {
-    const { workspace } = this.app;
-    const currentMarkdownView = workspace.getActiveViewOfType(MarkdownView);
-    if (currentMarkdownView) {
-      this.lastMarkdownView = currentMarkdownView;
-    }
-
-    let leaf = workspace.getLeavesOfType(VIEW_TYPE_TOOLBAR)[0];
-    if (!leaf) {
-      const newLeaf = workspace.getRightLeaf(false);
-      if (!newLeaf) {
-        new Notice("右サイドバーを開けませんでした。");
-        return;
+    try {
+      const { workspace } = this.app;
+      const currentMarkdownView = workspace.getActiveViewOfType(MarkdownView);
+      if (currentMarkdownView) {
+        this.lastMarkdownView = currentMarkdownView;
       }
-      await newLeaf.setViewState({ type: VIEW_TYPE_TOOLBAR, active: true });
-      leaf = newLeaf;
+
+      let leaf = workspace.getLeavesOfType(VIEW_TYPE_TOOLBAR)[0];
+      if (!leaf) {
+        const newLeaf = workspace.getRightLeaf(false);
+        if (!newLeaf) {
+          new Notice("右サイドバーを開けませんでした。");
+          return;
+        }
+        await newLeaf.setViewState({ type: VIEW_TYPE_TOOLBAR, active: true });
+        leaf = newLeaf;
+      }
+      workspace.revealLeaf(leaf);
+    } catch (e) {
+      console.error("Toolbar view activation error:", e);
+      new Notice("ツールバーの表示中にエラーが発生しました。");
     }
-    workspace.revealLeaf(leaf);
   }
 
   applyToolbarAction(action: ToolbarAction) {
@@ -284,21 +287,23 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
   optimizeSelection() {
     const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
     if (!markdownView) {
-      new Notice("Please open a Markdown note to use this command.");
+      new Notice("Markdownノートを開いてから使用してください。");
       return;
     }
     const editor = markdownView.editor;
     const selection = editor.getSelection();
     if (!selection || selection.length === 0) {
-      new Notice("Please select some text to optimize.");
+      new Notice("最適化するテキストを選択してください。");
       return;
     }
-    const optimizedText = processMarkdown(selection, "optimize", "obsidian");
-    editor.replaceSelection(optimizedText);
-    new Notice("Markdown optimized.");
-  }
 
-  onunload(): void {
-    console.log("Unloading Markdown Easy Editor");
+    try {
+      const optimizedText = processMarkdown(selection, "optimize", "obsidian");
+      editor.replaceSelection(optimizedText);
+      new Notice("Markdownを最適化しました。");
+    } catch (e) {
+      console.error("Markdown optimize error:", e);
+      new Notice("最適化中にエラーが発生しました。");
+    }
   }
 }

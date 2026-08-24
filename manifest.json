@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "minAppVersion": "1.0.0",
   "description": "MarkdownEasyEditorをObsidianから利用するためのプラグインです。",
-  "author": "Your Name",
-  "authorUrl": "https://github.com/your-account",
+  "author": "Chizmo",
+  "authorUrl": "https://github.com/Chizmo-byte",
   "isDesktopOnly": false
 }
