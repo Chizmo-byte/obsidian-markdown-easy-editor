@@ -1,0 +1,17 @@
+{
+  "name": "markdown-easy-editor-obsidian",
+  "version": "0.1.0",
+  "description": "MarkdownEasyEditor for Obsidian",
+  "main": "main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc --noEmit -skipLibCheck && node esbuild.config.mjs production"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.25.0",
+    "obsidian": "latest",
+    "typescript": "^5.0.0"
+  }
+}
