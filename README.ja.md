@@ -44,6 +44,17 @@ AIが生成した文章・Web記事のコピー・他ツールからのMarkdown�
 | Show status | プラグインが正常に読み込まれているか確認 |
 | Optimize Selected Markdown | 選択中のテキストを整形する |
 
+## Tips：記号をそのまま表示したい場合
+
+Obsidianの標準（ライブプレビューモード）では、入力した記号がすぐに見た目に変換されます。例えば「- 」と入力すると即座に「・」（黒丸）に変わり、「# 」は見出しのスタイルになります。これはObsidian本体の仕様で、このプラグインが制御しているものではありません。
+
+入力した記号（Markdown記法）をそのまま確認したい場合（記法を覚えたい方・後で他のツールにコピーする予定がある方など）は、そのノートを**ソースモード**に切り替えることができます。
+
+- ノートのタブを右クリック →「ソースモードで開く」、または
+- **設定 → エディタ → 既定の編集モード** を「ソースモード」に変更
+
+これはこのプラグインのツールバーを使う場合に限らず、Obsidianでのノート表示全体に影響する設定です。
+
 ## インストール方法
 
 ### コミュニティプラグインから（審査通過後）
@@ -54,7 +65,7 @@ AIが生成した文章・Web記事のコピー・他ツールからのMarkdown�
 
 ### 手動インストール
 
-1. [最新のリリース](https://github.com/Chizmo-byte/markdown-easy-editor/releases)から `main.js`・`manifest.json`（あれば`styles.css`も）をダウンロード
+1. [最新のリリース](https://github.com/Chizmo-byte/obsidian-markdown-easy-editor/releases)から `main.js`・`manifest.json`（あれば`styles.css`も）をダウンロード
 2. `<Vaultフォルダ>/.obsidian/plugins/markdown-easy-editor/` にコピー
 3. Obsidianを再読み込みし、**設定 → コミュニティプラグイン** で有効化
 
