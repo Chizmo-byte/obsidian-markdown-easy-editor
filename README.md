@@ -32,6 +32,10 @@ Select any text and run **Optimize Selected Markdown** from the command palette.
 
 This is aimed at anyone who regularly pastes AI-generated content, web clippings, or Markdown from other tools into Obsidian and wants it to look native.
 
+### 🌐 English and Japanese
+
+The toolbar and notifications automatically switch between English and Japanese based on your Obsidian display language setting. Any language other than Japanese falls back to English.
+
 ## Usage
 
 1. Click the pencil icon in the left ribbon to open the formatting toolbar, **or**
@@ -41,7 +45,6 @@ This is aimed at anyone who regularly pastes AI-generated content, web clippings
 
 | Command | Description |
 |---|---|
-| Show status | Confirms the plugin is loaded and ready |
 | Optimize Selected Markdown | Cleans up the currently selected text |
 
 ## Tip: Seeing raw Markdown symbols
