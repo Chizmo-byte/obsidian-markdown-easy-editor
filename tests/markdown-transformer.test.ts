@@ -93,6 +93,68 @@ test("コールアウト：折りたたみ記号付きでもタグを保持す�
   assert.equal(optimize("> [!note]- 本文"), "> [!note] 本文");
 });
 
+// --- AI前置き文の除去（英語） ---
+
+test("AI前置き文：Sure, here's ... を除去する", () => {
+  assert.equal(optimize("Sure, here's the explanation.\n\n# Title"), "# Title");
+});
+
+test("AI前置き文：Certainly! Here's ... を除去する", () => {
+  assert.equal(optimize("Certainly! Here's the code.\n\n# Title"), "# Title");
+});
+
+test("AI前置き文：了承の言い回しを一通り除去する", () => {
+  const intros = [
+    "Sure, here's the explanation.",
+    "Sure, here's a quick summary.",
+    "Certainly! Here's the code.",
+    "Certainly, here is the breakdown.",
+    "Of course! Here's the answer.",
+    "Understood. Here's the outline.",
+    "Absolutely! Here's a draft.",
+    "Here's the explanation you requested.",
+    "Here is the summary you asked for.",
+    "Below is the markdown version.",
+  ];
+  for (const intro of intros) {
+    assert.equal(optimize(`${intro}\n\n# Title`), "# Title", `除去されていない: ${intro}`);
+  }
+});
+
+test("AI前置き文：大文字・小文字を区別しない", () => {
+  assert.equal(optimize("SURE, HERE'S THE EXPLANATION.\n\n# Title"), "# Title");
+  assert.equal(optimize("sure, here's the explanation.\n\n# Title"), "# Title");
+});
+
+test("AI前置き文：前置きではない普通の英文は除去しない", () => {
+  const keep = [
+    // 限定詞が my なので成果物の提示ではない
+    "Here's my cat photo from yesterday.",
+    "Here's my take on the problem.",
+    // 成果物を指す名詞が無い
+    "Here's the cat I told you about.",
+    "Here is the restaurant we visited.",
+    // sure で始まるが別の語
+    "Surely there is a better way.",
+    "Surely here is not the place to argue.",
+    // 文中に出てくるだけ
+    "I am not sure, but here's what I remember about the code.",
+  ];
+  for (const line of keep) {
+    assert.equal(optimize(line), line, `誤って除去された: ${line}`);
+  }
+});
+
+test("AI前置き文：日本語のパターンは従来どおり動く", () => {
+  assert.equal(optimize("承知しました。以下にまとめます。\n\n# Title"), "# Title");
+  assert.equal(optimize("こちらが整理した内容です。\n\n# Title"), "# Title");
+});
+
+test("AI前置き文：本文中の英語行は巻き込まない", () => {
+  const body = "# Title\n\nHere's my cat photo from yesterday.\n\nSure, this works.";
+  assert.equal(optimize(body), body);
+});
+
 // 以下は不要なエスケープ（\[ / \-）を削除した正規表現の挙動を固定するためのテスト。
 // エスケープの有無で意味が変わっていないことを保証する。
 

@@ -141,12 +141,28 @@ const AI_INTRO_PATTERNS: readonly RegExp[] = [
   /^はい[、,]?\s*(マークダウン形式で|整理して)作成しました。?$/,
 ];
 
+/**
+ * 英語のAI前置き文。日本語版と同じく「決まった書き出し＋決まった結び」で緩く判定する。
+ * 普通の文章を巻き込まないよう、書き出しの語は \b で語境界を要求している
+ * （"Surely, ..." が "sure" に引っかからないようにするため）。
+ */
+const AI_INTRO_PATTERNS_EN: readonly RegExp[] = [
+  // 了承の一言に続けて成果物を提示するもの："Sure, here's ..." / "Certainly! Here is ..."
+  /^(sure|certainly|of course|understood|absolutely)\b[,!.]?\s*.*?\b(here'?s|here is|below is)\b.*$/i,
+  // 了承なしで提示するもの："Here's the explanation you requested."
+  // 「Here's my cat photo」のような通常の文を消さないため、限定詞（the/a/an/your）と
+  // 成果物を指す名詞の両方が揃った場合だけ前置き文とみなす。
+  /^(here'?s|here is|below is)\s+(the|a|an|your)\b.*\b(explanation|summary|breakdown|overview|outline|answer|code|snippet|example|markdown|draft|revision|translation|list)\b.*$/i,
+];
+
 function removeAiIntro(text: string): string {
   return text
     .split("\n")
     .filter((line) => {
       const trimmed = line.trim();
-      return !AI_INTRO_PATTERNS.some((pattern) => pattern.test(trimmed));
+      const isJapaneseIntro = AI_INTRO_PATTERNS.some((pattern) => pattern.test(trimmed));
+      const isEnglishIntro = AI_INTRO_PATTERNS_EN.some((pattern) => pattern.test(trimmed));
+      return !isJapaneseIntro && !isEnglishIntro;
     })
     .join("\n");
 }
