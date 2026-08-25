@@ -41,6 +41,27 @@ function applyEasyMode(text: string): string {
 
 const HEADING_RE = /^#{1,6}\s/;
 
+const HEADING_NO_SPACE_RE = /^(#{1,6})([^\s#].*)$/;
+
+/**
+ * `##見出し` のように `#` 直後のスペースが欠けた見出しを `## 見出し` に補正する。
+ *
+ * 注意：この処理は「行頭が # 1〜6個 ＋ スペース以外の文字」というパターンに
+ * マッチしたら常にスペースを挿入するため、Obsidian のハッシュタグを単独行に
+ * 書く使い方（`#タグ名`）と原理的に区別がつかず、それも見出しへ変換してしまう。
+ * 本プラグインの用途（AIチャットの回答整形）では、ハッシュタグの誤変換より
+ * スペース欠落による見出しの描画崩れの方が圧倒的に多いため、これを許容する。
+ */
+function fixMissingHeadingSpace(text: string): string {
+  return text
+    .split("\n")
+    .map((line) => {
+      const match = HEADING_NO_SPACE_RE.exec(line);
+      return match ? `${match[1]} ${match[2]}` : line;
+    })
+    .join("\n");
+}
+
 function ensureHeadingSpacing(text: string): string {
   const lines = text.split("\n");
   const out: string[] = [];
@@ -101,6 +122,7 @@ function applyOptimizeMode(text: string, target?: TargetPlatform): string {
   result = normalizeCallouts(result);
   result = reduceExcessiveBold(result);
 
+  result = fixMissingHeadingSpace(result);
   result = ensureHeadingSpacing(result);
   result = normalizeListMarkers(result);
   result = collapseDecorationRuns(result);
@@ -138,8 +160,11 @@ function stripObsidianSyntax(text: string): string {
   return result;
 }
 
-const CALLOUT_PROPER_RE = /^(\s*>)\s*\[![^\]\n]+\][-+]?[ \t]*(.*)$/;
-const CALLOUT_BARE_RE = /^\s*\[![^\]\n]+\][-+]?[ \t]*(.*)$/;
+// `[![^\]\n]+\]` はタグ名を限定しないため、[!note] / [!warning] / [!tip] /
+// [!danger] など Obsidian の全種類（およびユーザー定義の任意のタグ）に対応する。
+// タグ部分はキャプチャして出力に必ず含める（種類の情報を失わせない）。
+const CALLOUT_PROPER_RE = /^(\s*>)\s*(\[![^\]\n]+\])[-+]?[ \t]*(.*)$/;
+const CALLOUT_BARE_RE = /^\s*(\[![^\]\n]+\])[-+]?[ \t]*(.*)$/;
 
 function normalizeCallouts(text: string): string {
   const lines = text.split("\n");
@@ -149,16 +174,16 @@ function normalizeCallouts(text: string): string {
   while (i < lines.length) {
     const proper = CALLOUT_PROPER_RE.exec(lines[i]);
     if (proper) {
-      const [, prefix, title] = proper;
-      out.push(title.length > 0 ? `${prefix} ${title}` : prefix);
+      const [, prefix, tag, title] = proper;
+      out.push(title.length > 0 ? `${prefix} ${tag} ${title}` : `${prefix} ${tag}`);
       i += 1;
       continue;
     }
 
     const bare = CALLOUT_BARE_RE.exec(lines[i]);
     if (bare) {
-      const title = bare[1];
-      if (title.length > 0) out.push(`> ${title}`);
+      const [, tag, title] = bare;
+      out.push(title.length > 0 ? `> ${tag} ${title}` : `> ${tag}`);
       i += 1;
       while (i < lines.length && lines[i].trim() !== "") {
         out.push(`> ${lines[i].replace(/^\s*>?[ \t]?/, "")}`);
