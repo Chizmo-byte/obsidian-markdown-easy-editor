@@ -1,25 +1,21 @@
 /**
  * 表示言語の判定と、UI 文言の辞書。
  * Obsidian の表示言語設定に追随し、日本語以外は英語にフォールバックする。
+ *
+ * このモジュールは obsidian パッケージに依存させないこと。
+ * obsidian は型定義のみのパッケージで実行時に解決できないため、依存させると
+ * Node 上のユニットテストからロードできなくなる。表示言語の取得（getLanguage）は
+ * main.ts 側で行い、ここには ISO コードを受け取る純粋な判定関数だけを置く。
  */
 
 export type Locale = "en" | "ja";
 
 /**
- * Obsidian の表示言語を取得する。
- * Obsidian は選択中の言語を localStorage の "language" キーに保存しており、
- * 公式 API が無いためコミュニティプラグインではこの値を参照するのが通例。
- * 未設定・取得失敗時は英語とみなす。
+ * Obsidian の言語 ISO コードを、辞書が持つロケールへ写像する。
+ * `ja` / `ja-JP` などは日本語、それ以外はすべて英語にフォールバックする。
  */
-export function getLocale(): Locale {
-  try {
-    const locale = window.localStorage.getItem("language") || "en";
-    return locale.startsWith("ja") ? "ja" : "en";
-  } catch (e) {
-    // localStorage が使えない環境でもプラグイン自体は動かす
-    console.error("Locale detection error:", e);
-    return "en";
-  }
+export function resolveLocale(languageCode: string): Locale {
+  return languageCode.startsWith("ja") ? "ja" : "en";
 }
 
 export const STRINGS: Record<Locale, Record<string, string>> = {

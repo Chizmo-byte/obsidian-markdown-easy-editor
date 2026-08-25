@@ -1,6 +1,6 @@
-import { Notice, Plugin, MarkdownView, ItemView, Setting, WorkspaceLeaf } from "obsidian";
+import { Notice, Plugin, MarkdownView, ItemView, Setting, WorkspaceLeaf, getLanguage } from "obsidian";
 import { processMarkdown } from "./markdown-transformer";
-import { getLocale, t, type Locale } from "./i18n";
+import { resolveLocale, t, type Locale } from "./i18n";
 
 /**
  * 記法ボタンの定義。
@@ -121,7 +121,8 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
   locale: Locale = "en";
 
   async onload(): Promise<void> {
-    this.locale = getLocale();
+    // getLanguage() は Obsidian 公式 API。設定中の言語の ISO コードを返し、既定は "en"。
+    this.locale = resolveLocale(getLanguage());
 
     this.registerView(
       VIEW_TYPE_TOOLBAR,

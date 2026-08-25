@@ -1,6 +1,6 @@
 {
   "name": "markdown-easy-editor-obsidian",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "MarkdownEasyEditor for Obsidian",
   "main": "main.js",
   "type": "module",

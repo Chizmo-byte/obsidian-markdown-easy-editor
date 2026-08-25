@@ -1,10 +1,35 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { STRINGS, t } from "../src/i18n.ts";
+import { resolveLocale, STRINGS, t } from "../src/i18n.ts";
 
 const enKeys = Object.keys(STRINGS.en).sort();
 const jaKeys = Object.keys(STRINGS.ja).sort();
+
+// resolveLocale は Obsidian の getLanguage() が返す ISO コードを受け取る。
+// 一覧は https://github.com/obsidianmd/obsidian-translations を参照。
+test("言語判定：日本語のコードは ja になる", () => {
+  assert.equal(resolveLocale("ja"), "ja");
+  assert.equal(resolveLocale("ja-JP"), "ja");
+});
+
+test("言語判定：日本語以外はすべて en にフォールバックする", () => {
+  for (const code of ["en", "en-GB", "zh", "zh-TW", "ko", "fr", "de", "es", "ru", "pt-BR"]) {
+    assert.equal(resolveLocale(code), "en", `${code} が en にならない`);
+  }
+});
+
+test("言語判定：空文字でも en を返す", () => {
+  assert.equal(resolveLocale(""), "en");
+});
+
+test("言語判定：ja で始まらない j 系のコードは巻き込まない", () => {
+  // jv（ジャワ語）は ja で始まらないため日本語扱いにならない。
+  // なお前方一致判定のため "ja" で始まるコードは一律 ja になるが、
+  // Obsidian の対応言語で ja から始まるのは日本語のみなので実害はない。
+  assert.equal(resolveLocale("jv"), "en");
+  assert.equal(resolveLocale("jv-ID"), "en");
+});
 
 test("辞書：en と ja のキー集合が完全に一致する", () => {
   const missingInJa = enKeys.filter((k) => !jaKeys.includes(k));
