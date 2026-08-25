@@ -1,4 +1,4 @@
-import { Notice, Plugin, MarkdownView, ItemView, Setting } from "obsidian";
+import { Notice, Plugin, MarkdownView, ItemView, Setting, WorkspaceLeaf } from "obsidian";
 import { processMarkdown } from "./markdown-transformer";
 
 /** 記法ボタンの定義 */
@@ -41,8 +41,8 @@ const VIEW_TYPE_TOOLBAR = "markdown-easy-editor-view";
 class MarkdownToolbarView extends ItemView {
   plugin: MarkdownEasyEditorPlugin;
 
-  constructor(app: any, plugin: MarkdownEasyEditorPlugin) {
-    super(app);
+  constructor(leaf: WorkspaceLeaf, plugin: MarkdownEasyEditorPlugin) {
+    super(leaf);
     this.plugin = plugin;
   }
 
@@ -99,7 +99,7 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
   async onload(): Promise<void> {
     this.registerView(
       VIEW_TYPE_TOOLBAR,
-      (app) => new MarkdownToolbarView(app, this)
+      (leaf) => new MarkdownToolbarView(leaf, this)
     );
 
     this.registerEvent(
@@ -111,7 +111,8 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
     );
 
     this.addRibbonIcon("pencil", "Markdown Easy Editor", () => {
-      this.activateToolbarView();
+      // activateToolbarView は内部で例外を捕捉するため、Promise は明示的に破棄する
+      void this.activateToolbarView();
     });
 
     this.addCommand({
@@ -141,7 +142,7 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
         await newLeaf.setViewState({ type: VIEW_TYPE_TOOLBAR, active: true });
         leaf = newLeaf;
       }
-      workspace.revealLeaf(leaf);
+      await workspace.revealLeaf(leaf);
     } catch (e) {
       console.error("Toolbar view activation error:", e);
       new Notice("ツールバーの表示中にエラーが発生しました。");
@@ -198,7 +199,7 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
         const lineText = editor.getLine(cursor.line);
 
         if (prefix === "> ") {
-          const listMarkerRegex = /^(\s*(\d+\.|\-|\*|\+)\s*)/;
+          const listMarkerRegex = /^(\s*(\d+\.|-|\*|\+)\s*)/;
           if (listMarkerRegex.test(lineText)) {
             const cleanedLine = lineText.replace(listMarkerRegex, "");
             editor.replaceRange(cleanedLine, { line: cursor.line, ch: 0 }, { line: cursor.line, ch: lineText.length });

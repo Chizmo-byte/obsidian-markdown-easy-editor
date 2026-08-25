@@ -79,7 +79,7 @@ function ensureHeadingSpacing(text: string): string {
 }
 
 function normalizeListMarkers(text: string): string {
-  return text.replace(/^(\s*)([-*])(?=[^\s*\-])/gm, "$1$2 ");
+  return text.replace(/^(\s*)([-*])(?=[^\s*-])/gm, "$1$2 ");
 }
 
 const DECORATION_RE = /^\s*([-*_=])\1{2,}\s*$/;
@@ -153,7 +153,7 @@ function removeAiIntro(text: string): string {
 
 function stripObsidianSyntax(text: string): string {
   let result = text;
-  result = result.replace(/\[\[([^\[\]]+)\]\]/g, (_match, inner: string) => {
+  result = result.replace(/\[\[([^[\]]+)\]\]/g, (_match, inner: string) => {
     const parts = inner.split("|");
     return (parts.length > 1 ? parts[1] : parts[0]).trim();
   });

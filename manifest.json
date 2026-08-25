@@ -1,9 +1,9 @@
 {
   "id": "markdown-easy-editor",
   "name": "Markdown Easy Editor",
-  "version": "0.1.0",
-  "minAppVersion": "1.0.0",
-  "description": "MarkdownEasyEditorをObsidianから利用するためのプラグインです。",
+  "version": "0.1.1",
+  "minAppVersion": "1.7.2",
+  "description": "Adds a Markdown formatting toolbar and an Optimize command for cleaning up messy Markdown.",
   "author": "Chizmo",
   "authorUrl": "https://github.com/Chizmo-byte",
   "isDesktopOnly": false
