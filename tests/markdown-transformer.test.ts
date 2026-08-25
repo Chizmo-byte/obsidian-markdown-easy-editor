@@ -8,6 +8,11 @@ function optimize(text: string): string {
   return processMarkdown(text, "optimize");
 }
 
+/** easy モード（初心者向けの体裁修正のみ）で整形する。 */
+function easy(text: string): string {
+  return processMarkdown(text, "easy");
+}
+
 test("見出し：# 直後のスペース欠落を補う", () => {
   assert.equal(optimize("#見出し"), "# 見出し");
 });
@@ -29,6 +34,25 @@ test("見出し：# が7個以上の行は見出しではないので変更し�
 
 test("見出し：# のみの行は変更しない", () => {
   assert.equal(optimize("#"), "#");
+});
+
+test("見出し：easy モードでもスペース欠落を補う", () => {
+  assert.equal(easy("#見出し"), "# 見出し");
+});
+
+test("見出し：easy モードでも H1〜H6 すべての階層で補正される", () => {
+  for (let level = 1; level <= 6; level += 1) {
+    const hashes = "#".repeat(level);
+    assert.equal(easy(`${hashes}見出し`), `${hashes} 見出し`);
+  }
+});
+
+test("見出し：easy モードでも # が7個以上の行は変更しない", () => {
+  assert.equal(easy("#######見出し"), "#######見出し");
+});
+
+test("コールアウト：easy モードでは行に手を加えない", () => {
+  assert.equal(easy("> [!warning] 本文"), "> [!warning] 本文");
 });
 
 test("コールアウト：[!warning] 付きの行は変化しない", () => {

@@ -33,7 +33,8 @@ function applyCommonRules(text: string): string {
 }
 
 function applyEasyMode(text: string): string {
-  let result = ensureHeadingSpacing(text);
+  let result = fixMissingHeadingSpace(text);
+  result = ensureHeadingSpacing(result);
   result = normalizeListMarkers(result);
   result = collapseDecorationRuns(result);
   return result;
