@@ -1,39 +1,59 @@
 import { Notice, Plugin, MarkdownView, ItemView, Setting, WorkspaceLeaf } from "obsidian";
 import { processMarkdown } from "./markdown-transformer";
+import { getLocale, t, type Locale } from "./i18n";
 
-/** 記法ボタンの定義 */
+/**
+ * 記法ボタンの定義。
+ * id は言語に依存しない安定した識別子で、挙動の分岐は必ず id で行う
+ * （label は翻訳されるため分岐条件に使ってはいけない）。
+ */
 type ToolbarAction =
-  | { kind: "line-prefix"; prefix: string; symbol: string; label: string; tip: string; shortcut: string }
-  | { kind: "wrap"; marker: string; symbol: string; label: string; tip: string; shortcut: string }
-  | { kind: "insert"; snippet: string; symbol: string; label: string; tip: string; shortcut: string }
-  | { kind: "link"; symbol: string; label: string; tip: string; shortcut: string };
+  | { kind: "line-prefix"; id: string; prefix: string; symbol: string; label: string; tip: string; shortcut: string }
+  | { kind: "wrap"; id: string; marker: string; symbol: string; label: string; tip: string; shortcut: string }
+  | { kind: "insert"; id: string; snippet: string; placeholder?: string; symbol: string; label: string; tip: string; shortcut: string }
+  | { kind: "link"; id: string; symbol: string; label: string; tip: string; shortcut: string };
 
-const HEADING_BUTTONS: ReadonlyArray<ToolbarAction> = [
-  { kind: "line-prefix", prefix: "# ", symbol: "#", label: "H1", shortcut: "# 見出し1", tip: "最上位の見出しです。" },
-  { kind: "line-prefix", prefix: "## ", symbol: "##", label: "H2", shortcut: "## 見出し2", tip: "中見出しです。" },
-  { kind: "line-prefix", prefix: "### ", symbol: "###", label: "H3", shortcut: "### 見出し3", tip: "小見出しです。" },
-  { kind: "line-prefix", prefix: "#### ", symbol: "####", label: "H4", shortcut: "#### 見出し4", tip: "さらに小さい見出しです。" },
-  { kind: "line-prefix", prefix: "##### ", symbol: "#####", label: "H5", shortcut: "##### 見出し5", tip: "詳細な見出しです。" },
-  { kind: "line-prefix", prefix: "###### ", symbol: "######", label: "H6", shortcut: "###### 見出し6", tip: "最小の見出しです。" },
-];
+const HEADING_LEVELS = [1, 2, 3, 4, 5, 6] as const;
 
-const BASIC_BUTTONS: ReadonlyArray<ToolbarAction> = [
-  { kind: "wrap", marker: "**", symbol: "**", label: "太字", shortcut: "**文字**", tip: "重要な言葉を目立たせます。選択範囲を太字にできます。" },
-  { kind: "wrap", marker: "*", symbol: "*", label: "斜体", shortcut: "*文字*", tip: "軽く強調したい言葉に使います。" },
-  { kind: "line-prefix", prefix: "- ", symbol: "-", label: "リスト", shortcut: "- 項目", tip: "項目を並べます。選択した複数行にも適用できます。" },
-  { kind: "line-prefix", prefix: "1. ", symbol: "1.", label: "番号", shortcut: "1. 手順", tip: "順番のある手順やランキングを表します。" },
-  { kind: "line-prefix", prefix: "> ", symbol: ">", label: "引用", shortcut: "> 引用", tip: "誰かの言葉や補足を引用するときに使います。" },
-  { kind: "link", symbol: "[]()", label: "リンク", shortcut: "[文字](URL)", tip: "Webページなどのリンクを付けます。" },
-];
+function buildHeadingButtons(locale: Locale): ReadonlyArray<ToolbarAction> {
+  return HEADING_LEVELS.map((level) => {
+    const hashes = "#".repeat(level);
+    return {
+      kind: "line-prefix" as const,
+      id: `h${level}`,
+      prefix: `${hashes} `,
+      symbol: hashes,
+      label: t(`labelH${level}`, locale),
+      shortcut: t(`shortcutH${level}`, locale),
+      tip: t(`tipH${level}`, locale),
+    };
+  });
+}
 
-const MORE_BUTTONS: ReadonlyArray<ToolbarAction> = [
-  { kind: "insert", snippet: "`code`", symbol: "`", label: "インラインコード", shortcut: "`code`", tip: "選択範囲をインラインコードにします。" },
-  { kind: "insert", snippet: "```text\nここにコード\n```", symbol: "```", label: "コードブロック", shortcut: "```code```", tip: "複数行のコードを表示します。" },
-  { kind: "insert", snippet: "| 項目 | 内容 |\n| --- | --- |\n| 例 | 説明 |", symbol: "|", label: "表", shortcut: "| 項目 | 内容 |", tip: "項目を行と列で比較・整理します。" },
-  { kind: "insert", snippet: "- [ ] やること", symbol: "[ ]", label: "チェック", shortcut: "- [ ] TODO", tip: "作業の完了・未完了をチェックリストで管理します。" },
-  { kind: "wrap", marker: "~~", symbol: "~~", label: "取消線", shortcut: "~~文字~~", tip: "修正前の内容や取り消した文章を示します。" },
-  { kind: "insert", snippet: "\n---\n", symbol: "---", label: "区切り", shortcut: "---", tip: "話題の変わり目に水平線を入れます。" },
-];
+function buildBasicButtons(locale: Locale): ReadonlyArray<ToolbarAction> {
+  return [
+    { kind: "wrap", id: "bold", marker: "**", symbol: "**", label: t("labelBold", locale), shortcut: t("shortcutBold", locale), tip: t("tipBold", locale) },
+    { kind: "wrap", id: "italic", marker: "*", symbol: "*", label: t("labelItalic", locale), shortcut: t("shortcutItalic", locale), tip: t("tipItalic", locale) },
+    { kind: "line-prefix", id: "list", prefix: "- ", symbol: "-", label: t("labelList", locale), shortcut: t("shortcutList", locale), tip: t("tipList", locale) },
+    { kind: "line-prefix", id: "number", prefix: "1. ", symbol: "1.", label: t("labelNumber", locale), shortcut: t("shortcutNumber", locale), tip: t("tipNumber", locale) },
+    { kind: "line-prefix", id: "quote", prefix: "> ", symbol: ">", label: t("labelQuote", locale), shortcut: t("shortcutQuote", locale), tip: t("tipQuote", locale) },
+    { kind: "link", id: "link", symbol: "[]()", label: t("labelLink", locale), shortcut: t("shortcutLink", locale), tip: t("tipLink", locale) },
+  ];
+}
+
+function buildMoreButtons(locale: Locale): ReadonlyArray<ToolbarAction> {
+  const codePlaceholder = t("placeholderCode", locale);
+  const todoPlaceholder = t("placeholderTodo", locale);
+
+  return [
+    { kind: "insert", id: "inline-code", snippet: "`code`", placeholder: "code", symbol: "`", label: t("labelInlineCode", locale), shortcut: t("shortcutInlineCode", locale), tip: t("tipInlineCode", locale) },
+    { kind: "insert", id: "code-block", snippet: `\`\`\`text\n${codePlaceholder}\n\`\`\``, placeholder: codePlaceholder, symbol: "```", label: t("labelCodeBlock", locale), shortcut: t("shortcutCodeBlock", locale), tip: t("tipCodeBlock", locale) },
+    { kind: "insert", id: "table", snippet: t("snippetTable", locale), symbol: "|", label: t("labelTable", locale), shortcut: t("shortcutTable", locale), tip: t("tipTable", locale) },
+    { kind: "insert", id: "check", snippet: `- [ ] ${todoPlaceholder}`, placeholder: todoPlaceholder, symbol: "[ ]", label: t("labelCheck", locale), shortcut: t("shortcutCheck", locale), tip: t("tipCheck", locale) },
+    { kind: "wrap", id: "strikethrough", marker: "~~", symbol: "~~", label: t("labelStrikethrough", locale), shortcut: t("shortcutStrikethrough", locale), tip: t("tipStrikethrough", locale) },
+    { kind: "insert", id: "divider", snippet: "\n---\n", symbol: "---", label: t("labelDivider", locale), shortcut: t("shortcutDivider", locale), tip: t("tipDivider", locale) },
+  ];
+}
 
 const VIEW_TYPE_TOOLBAR = "markdown-easy-editor-view";
 
@@ -55,9 +75,10 @@ class MarkdownToolbarView extends ItemView {
   }
 
   async onOpen() {
+    const locale = this.plugin.locale;
     const container = this.contentEl;
     container.empty();
-    container.createEl("h3", { text: "Markdown 記法パレット", attr: { style: "margin-bottom: 10px; padding: 0 10px;" } });
+    container.createEl("h3", { text: t("paletteTitle", locale), attr: { style: "margin-bottom: 10px; padding: 0 10px;" } });
 
     const renderSection = (title: string, buttons: ReadonlyArray<ToolbarAction>, isOpen: boolean) => {
       const details = container.createEl("details", { 
@@ -78,7 +99,7 @@ class MarkdownToolbarView extends ItemView {
           .setDesc(`${btn.shortcut} — ${btn.tip}`)
           .addButton((button) => {
             button
-              .setButtonText("適用")
+              .setButtonText(t("applyButton", locale))
               .setTooltip(`${btn.shortcut} — ${btn.tip}`)
               .onClick(() => {
                 this.plugin.applyToolbarAction(btn);
@@ -87,16 +108,21 @@ class MarkdownToolbarView extends ItemView {
       });
     };
 
-    renderSection("見出し", HEADING_BUTTONS, true);
-    renderSection("基本", BASIC_BUTTONS, true);
-    renderSection("その他", MORE_BUTTONS, false);
+    renderSection(t("sectionHeadings", locale), buildHeadingButtons(locale), true);
+    renderSection(t("sectionBasic", locale), buildBasicButtons(locale), true);
+    renderSection(t("sectionMore", locale), buildMoreButtons(locale), false);
   }
 }
 
 export default class MarkdownEasyEditorPlugin extends Plugin {
   private lastMarkdownView: MarkdownView | null = null;
 
+  /** Obsidian の表示言語。onload 時に確定させ、UI とすべての通知で共有する。 */
+  locale: Locale = "en";
+
   async onload(): Promise<void> {
+    this.locale = getLocale();
+
     this.registerView(
       VIEW_TYPE_TOOLBAR,
       (leaf) => new MarkdownToolbarView(leaf, this)
@@ -136,7 +162,7 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
       if (!leaf) {
         const newLeaf = workspace.getRightLeaf(false);
         if (!newLeaf) {
-          new Notice("右サイドバーを開けませんでした。");
+          new Notice(t("noticeSidebarUnavailable", this.locale));
           return;
         }
         await newLeaf.setViewState({ type: VIEW_TYPE_TOOLBAR, active: true });
@@ -145,14 +171,14 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
       await workspace.revealLeaf(leaf);
     } catch (e) {
       console.error("Toolbar view activation error:", e);
-      new Notice("ツールバーの表示中にエラーが発生しました。");
+      new Notice(t("noticeToolbarError", this.locale));
     }
   }
 
   applyToolbarAction(action: ToolbarAction) {
     const markdownView = this.lastMarkdownView ?? this.app.workspace.getActiveViewOfType(MarkdownView);
     if (!markdownView) {
-      new Notice("Markdownノートを開いてから使用してください。");
+      new Notice(t("noticeNoMarkdownNote", this.locale));
       return;
     }
 
@@ -193,7 +219,7 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
         const prefix = action.prefix;
         
         if (selection && selection.includes("\n")) {
-          new Notice("複数行選択は未対応です。1行ずつ適用してください。");
+          new Notice(t("noticeMultilineUnsupported", this.locale));
         }
 
         const lineText = editor.getLine(cursor.line);
@@ -230,7 +256,7 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
       } 
       else if (action.kind === "insert") {
         // インラインコードは選択範囲があれば従来どおりバッククォートで挟む
-        if (action.label === "インラインコード" && selection && selection.length > 0) {
+        if (action.id === "inline-code" && selection && selection.length > 0) {
           const startPos = editor.getCursor("from");
           editor.replaceSelection(`\`${selection}\``);
           editor.setSelection(
@@ -246,40 +272,43 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
         const snippet = action.snippet;
         editor.replaceSelection(snippet);
 
-        if (action.label === "インラインコード") {
+        // プレースホルダーは翻訳されるため、位置も長さも action.placeholder から求める
+        const placeholder = action.placeholder ?? "";
+
+        if (action.id === "inline-code") {
           // 空のインラインコードはライブプレビューでカーソル位置がずれるため、
           // プレースホルダー `code` を挿入して選択状態にする
           const cursorAfter = editor.getCursor();
           const currentLine = editor.getLine(cursorAfter.line);
-          const start = currentLine.lastIndexOf("`code`", cursorAfter.ch);
+          const start = currentLine.lastIndexOf(`\`${placeholder}\``, cursorAfter.ch);
           if (start !== -1) {
             editor.setSelection(
               { line: cursorAfter.line, ch: start + 1 },
-              { line: cursorAfter.line, ch: start + 5 }
+              { line: cursorAfter.line, ch: start + 1 + placeholder.length }
             );
           }
-        } else if (action.label === "コードブロック") {
+        } else if (action.id === "code-block") {
           const lineIdx = editor.getCursor().line;
-          const targetLineIdx = lineIdx - 1; 
+          const targetLineIdx = lineIdx - 1;
           if (targetLineIdx >= 0) {
             const targetLine = editor.getLine(targetLineIdx);
-            const start = targetLine.indexOf("ここにコード");
+            const start = targetLine.indexOf(placeholder);
             if (start !== -1) {
-              editor.setSelection({ line: targetLineIdx, ch: start }, { line: targetLineIdx, ch: start + 6 });
+              editor.setSelection({ line: targetLineIdx, ch: start }, { line: targetLineIdx, ch: start + placeholder.length });
             }
           }
-        } else if (action.label === "チェック") {
+        } else if (action.id === "check") {
           const currentLine = editor.getLine(editor.getCursor().line);
-          const start = currentLine.indexOf("やること");
+          const start = currentLine.indexOf(placeholder);
           if (start !== -1) {
-            editor.setSelection({ line: editor.getCursor().line, ch: start }, { line: editor.getCursor().line, ch: start + 4 });
+            editor.setSelection({ line: editor.getCursor().line, ch: start }, { line: editor.getCursor().line, ch: start + placeholder.length });
           }
         } else {
           editor.setCursor({ line: editor.getCursor().line, ch: editor.getLine(editor.getCursor().line).length });
         }
       } 
       else if (action.kind === "link") {
-        const linkText = selection || "リンク文字列";
+        const linkText = selection || t("linkTextDefault", this.locale);
         const url = "URL";
         const result = `[${linkText}](${url})`;
         editor.replaceSelection(result);
@@ -295,7 +324,7 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
       }
     } catch (e) {
       console.error("Toolbar action error:", e);
-      new Notice("記法の適用中にエラーが発生しました。");
+      new Notice(t("noticeActionError", this.locale));
     }
     
     if (markdownView.leaf) {
@@ -306,23 +335,23 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
   optimizeSelection() {
     const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
     if (!markdownView) {
-      new Notice("Markdownノートを開いてから使用してください。");
+      new Notice(t("noticeNoMarkdownNote", this.locale));
       return;
     }
     const editor = markdownView.editor;
     const selection = editor.getSelection();
     if (!selection || selection.length === 0) {
-      new Notice("最適化するテキストを選択してください。");
+      new Notice(t("noticeSelectText", this.locale));
       return;
     }
 
     try {
       const optimizedText = processMarkdown(selection, "optimize", "obsidian");
       editor.replaceSelection(optimizedText);
-      new Notice("Markdownを最適化しました。");
+      new Notice(t("noticeOptimized", this.locale));
     } catch (e) {
       console.error("Markdown optimize error:", e);
-      new Notice("最適化中にエラーが発生しました。");
+      new Notice(t("noticeOptimizeError", this.locale));
     }
   }
 }
