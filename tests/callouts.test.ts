@@ -168,6 +168,20 @@ test("文言：コールアウトのラベルが「基本」「その他」の�
   }
 });
 
+test("文言：見た目が重複する種別は説明文でその旨を伝えている", () => {
+  // Obsidian 本体は important と tip に同じ色・同じアイコン（lucide-flame）を
+  // 割り当てているため、挿入後の見た目は完全に一致する。本体の仕様であり
+  // こちらで直せないので、押す前に気づけるよう説明文で伝える。
+  const important = CALLOUT_TYPES.find((c) => c.type === "important");
+  const tip = CALLOUT_TYPES.find((c) => c.type === "tip");
+  assert.ok(important && tip);
+  assert.equal(important.darkRgb, tip.darkRgb, "前提が崩れている：色が別になった");
+  assert.equal(important.lightRgb, tip.lightRgb, "前提が崩れている：色が別になった");
+
+  assert.match(t(calloutStringKey("tip", "important"), "ja"), /「ヒント」と同じ/);
+  assert.match(t(calloutStringKey("tip", "important"), "en"), /identically to Tip/i);
+});
+
 test("見た目：色の線が視認できる太さになっている", () => {
   const width = Number.parseInt(CALLOUT_BUTTON_STYLE.borderLeftWidth, 10);
   assert.ok(width >= 4, `線が細い: ${CALLOUT_BUTTON_STYLE.borderLeftWidth}`);

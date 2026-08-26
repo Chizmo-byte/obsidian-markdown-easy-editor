@@ -94,7 +94,9 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     labelCalloutTip: "Tip",
     tipCalloutTip: "For a handy trick or a recommendation.",
     labelCalloutImportant: "Important",
-    tipCalloutImportant: "For a point you want to stand out.",
+    // Obsidian gives important and tip the same colour and the same icon,
+    // so the rendered result is indistinguishable. Say so up front.
+    tipCalloutImportant: "For a point you want to stand out. Renders identically to Tip.",
     labelCalloutWarning: "Warning",
     tipCalloutWarning: "For something the reader should be careful about.",
     labelCalloutDanger: "Danger",
@@ -213,7 +215,9 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     labelCalloutTip: "ヒント",
     tipCalloutTip: "ちょっとしたコツやおすすめを伝える時に使います。",
     labelCalloutImportant: "重要",
-    tipCalloutImportant: "特に強調して伝えたい要点に使います。",
+    // Obsidian 本体が important と tip に同じ色・同じアイコンを割り当てているため、
+    // 挿入後の見た目は区別がつかない。押す前に分かるよう明記する。
+    tipCalloutImportant: "特に強調して伝えたい要点に使います。表示は「ヒント」と同じになります。",
     labelCalloutWarning: "警告",
     tipCalloutWarning: "注意喚起したい内容に使います。",
     labelCalloutDanger: "危険",
