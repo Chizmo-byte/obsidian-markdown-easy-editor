@@ -43,7 +43,7 @@ function buildBasicButtons(locale: Locale): ReadonlyArray<ToolbarAction> {
   ];
 }
 
-function buildCalloutButtons(locale: Locale): ReadonlyArray<ToolbarAction> {
+function buildCalloutButtons(locale: Locale, isDarkTheme: boolean): ReadonlyArray<ToolbarAction> {
   const titlePlaceholder = t("calloutTitlePlaceholder", locale);
   const bodyPlaceholder = t("calloutBodyPlaceholder", locale);
 
@@ -51,7 +51,7 @@ function buildCalloutButtons(locale: Locale): ReadonlyArray<ToolbarAction> {
     kind: "callout" as const,
     id: `callout-${callout.type}`,
     calloutType: callout.type,
-    accentColor: calloutAccentColor(callout),
+    accentColor: calloutAccentColor(callout, isDarkTheme),
     titlePlaceholder,
     bodyPlaceholder,
     symbol: "[!]",
@@ -127,10 +127,15 @@ class MarkdownToolbarView extends ItemView {
           });
 
         // ソースモードでは挿入するまで実際の色が分からないため、
-        // コールアウトだけは行の左端に種別の色を細く出す
+        // コールアウトだけは行の左端に種別の色を細く出す。
+        // ショートハンドではなく個別プロパティに important 付きで指定する。
+        // テーマが .setting-item の border を !important で潰していても勝てるようにするため。
         if (btn.kind === "callout") {
-          setting.settingEl.style.borderLeft = `3px solid ${btn.accentColor}`;
-          setting.settingEl.style.paddingLeft = "10px";
+          const el = setting.settingEl;
+          el.style.setProperty("border-left-width", "3px", "important");
+          el.style.setProperty("border-left-style", "solid", "important");
+          el.style.setProperty("border-left-color", btn.accentColor, "important");
+          el.style.setProperty("padding-left", "10px", "important");
         }
       });
     };
@@ -138,7 +143,9 @@ class MarkdownToolbarView extends ItemView {
     renderSection(t("sectionHeadings", locale), buildHeadingButtons(locale), true);
     renderSection(t("sectionBasic", locale), buildBasicButtons(locale), true);
     renderSection(t("sectionMore", locale), buildMoreButtons(locale), false);
-    renderSection(t("sectionCallouts", locale), buildCalloutButtons(locale), false);
+    // テーマ判定は描画時に一度だけ。CSS 変数に頼らず配色を確定させる。
+    const isDarkTheme = document.body.classList.contains("theme-dark");
+    renderSection(t("sectionCallouts", locale), buildCalloutButtons(locale, isDarkTheme), false);
   }
 }
 

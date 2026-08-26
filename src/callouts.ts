@@ -2,45 +2,55 @@
  * コールアウト記法の定義とスニペット生成。
  *
  * このモジュールは obsidian パッケージに依存させないこと（i18n.ts と同じ理由）。
- * 色は Obsidian 本体の CSS 変数をそのまま参照する。テーマやライト/ダークで
- * 値が変わるため、16進数を焼き込まずに変数へ委ねている。
- * 変数名と対応は Obsidian 本体の app.css（.callout[data-callout="..."] の定義）に準拠。
+ *
+ * 色について：以前は `rgb(var(--callout-warning, ...))` のように Obsidian 本体の
+ * CSS 変数を参照していたが、これは実機で色が出ない不具合の原因になった。
+ * 変数が RGB 三つ組**以外**（16進数・rgb()・色名・空）で定義されていると
+ * `rgb(...)` の置換結果が不正になり、CSS の規定により宣言そのものが破棄される。
+ * このとき var() のフォールバックは使われない（変数は「定義済み」のため）ので、
+ * ボーダーが丸ごと消える。テーマがコールアウト色を再定義すると容易に起きる。
+ *
+ * そのため変数参照をやめ、実測値を直接持つ。値は Obsidian 本体 app.css の
+ * .theme-dark / .theme-light 各ブロックにある --color-*-rgb から採取している。
  */
 
 export interface CalloutType {
   /** `> [!xxx]` に入る種別名。 */
   type: string;
-  /** Obsidian が実際にこの種別へ割り当てている CSS 変数名。 */
-  colorVar: string;
-  /** 変数が解決できなかった場合に使う RGB 三つ組。 */
-  fallbackRgb: string;
+  /** ダークテーマでの RGB 三つ組。 */
+  darkRgb: string;
+  /** ライトテーマでの RGB 三つ組。 */
+  lightRgb: string;
 }
 
 /**
  * パレットに並べる12種類。表示順はおすすめ順。
  *
- * note に `[data-callout="note"]` の規則は存在せず、`.callout` の既定色
- * （--callout-default）が適用される。danger は error の、abstract は summary の
- * 別名として定義されているため、色変数はそれぞれの実体を指している。
+ * 各行のコメントは Obsidian 側の対応。note に `[data-callout="note"]` の規則は
+ * 存在せず `.callout` の既定色（--callout-default）が当たる。danger は error の、
+ * abstract は summary の別名。
  */
 export const CALLOUT_TYPES: ReadonlyArray<CalloutType> = [
-  { type: "note", colorVar: "--callout-default", fallbackRgb: "8, 109, 221" },
-  { type: "tip", colorVar: "--callout-tip", fallbackRgb: "0, 191, 188" },
-  { type: "important", colorVar: "--callout-important", fallbackRgb: "0, 191, 188" },
-  { type: "warning", colorVar: "--callout-warning", fallbackRgb: "236, 117, 0" },
-  { type: "danger", colorVar: "--callout-error", fallbackRgb: "233, 49, 71" },
-  { type: "info", colorVar: "--callout-info", fallbackRgb: "8, 109, 221" },
-  { type: "success", colorVar: "--callout-success", fallbackRgb: "8, 185, 78" },
-  { type: "question", colorVar: "--callout-question", fallbackRgb: "236, 117, 0" },
-  { type: "example", colorVar: "--callout-example", fallbackRgb: "120, 82, 238" },
-  { type: "quote", colorVar: "--callout-quote", fallbackRgb: "158, 158, 158" },
-  { type: "abstract", colorVar: "--callout-summary", fallbackRgb: "0, 191, 188" },
-  { type: "bug", colorVar: "--callout-bug", fallbackRgb: "233, 49, 71" },
+  { type: "note", darkRgb: "2, 122, 255", lightRgb: "8, 109, 221" },       // default → blue
+  { type: "tip", darkRgb: "83, 223, 221", lightRgb: "0, 191, 188" },       // cyan
+  { type: "important", darkRgb: "83, 223, 221", lightRgb: "0, 191, 188" }, // cyan
+  { type: "warning", darkRgb: "233, 151, 63", lightRgb: "236, 117, 0" },   // orange
+  { type: "danger", darkRgb: "251, 70, 76", lightRgb: "233, 49, 71" },     // error → red
+  { type: "info", darkRgb: "2, 122, 255", lightRgb: "8, 109, 221" },       // blue
+  { type: "success", darkRgb: "68, 207, 110", lightRgb: "8, 185, 78" },    // green
+  { type: "question", darkRgb: "233, 151, 63", lightRgb: "236, 117, 0" },  // orange
+  { type: "example", darkRgb: "168, 130, 255", lightRgb: "120, 82, 238" }, // purple
+  { type: "quote", darkRgb: "158, 158, 158", lightRgb: "158, 158, 158" },  // 本体が直値で定義
+  { type: "abstract", darkRgb: "83, 223, 221", lightRgb: "0, 191, 188" },  // summary → cyan
+  { type: "bug", darkRgb: "251, 70, 76", lightRgb: "233, 49, 71" },        // red
 ];
 
-/** パレットのボタンに引くアクセント色。Obsidian の変数を優先し、無ければ固定値。 */
-export function calloutAccentColor(callout: CalloutType): string {
-  return `rgb(var(${callout.colorVar}, ${callout.fallbackRgb}))`;
+/**
+ * パレットのボタンに引くアクセント色を返す。
+ * 必ず解決済みの `rgb(r, g, b)` を返し、var() は一切含めない。
+ */
+export function calloutAccentColor(callout: CalloutType, isDarkTheme: boolean): string {
+  return `rgb(${isDarkTheme ? callout.darkRgb : callout.lightRgb})`;
 }
 
 /** i18n の文言キー。`note` → `labelCalloutNote` / `tipCalloutNote`。 */

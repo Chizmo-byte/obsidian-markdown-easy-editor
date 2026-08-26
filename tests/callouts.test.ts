@@ -24,46 +24,70 @@ test("種類：重複が無い", () => {
   assert.equal(new Set(types).size, types.length);
 });
 
-// Obsidian 本体の app.css における `.callout[data-callout="..."]` の定義。
-// note は専用の規則が無く既定色、danger は error、abstract は summary の別名。
-const EXPECTED_COLOR_VARS: Record<string, string> = {
-  note: "--callout-default",
-  tip: "--callout-tip",
-  important: "--callout-important",
-  warning: "--callout-warning",
-  danger: "--callout-error",
-  info: "--callout-info",
-  success: "--callout-success",
-  question: "--callout-question",
-  example: "--callout-example",
-  quote: "--callout-quote",
-  abstract: "--callout-summary",
-  bug: "--callout-bug",
+// Obsidian 本体 app.css の .theme-dark / .theme-light にある --color-*-rgb の実測値。
+// note は既定色（blue）、danger は error（red）、abstract は summary（cyan）の別名。
+const EXPECTED_RGB: Record<string, { dark: string; light: string }> = {
+  note: { dark: "2, 122, 255", light: "8, 109, 221" },
+  tip: { dark: "83, 223, 221", light: "0, 191, 188" },
+  important: { dark: "83, 223, 221", light: "0, 191, 188" },
+  warning: { dark: "233, 151, 63", light: "236, 117, 0" },
+  danger: { dark: "251, 70, 76", light: "233, 49, 71" },
+  info: { dark: "2, 122, 255", light: "8, 109, 221" },
+  success: { dark: "68, 207, 110", light: "8, 185, 78" },
+  question: { dark: "233, 151, 63", light: "236, 117, 0" },
+  example: { dark: "168, 130, 255", light: "120, 82, 238" },
+  quote: { dark: "158, 158, 158", light: "158, 158, 158" },
+  abstract: { dark: "83, 223, 221", light: "0, 191, 188" },
+  bug: { dark: "251, 70, 76", light: "233, 49, 71" },
 };
 
-test("色：Obsidian 本体が各種別に割り当てている CSS 変数を参照している", () => {
+test("色：Obsidian 本体の配色と一致している（ライト・ダーク両方）", () => {
   for (const callout of CALLOUT_TYPES) {
-    assert.equal(
-      callout.colorVar,
-      EXPECTED_COLOR_VARS[callout.type],
-      `${callout.type} の色変数が違う`,
-    );
+    assert.equal(callout.darkRgb, EXPECTED_RGB[callout.type].dark, `${callout.type} のダーク色`);
+    assert.equal(callout.lightRgb, EXPECTED_RGB[callout.type].light, `${callout.type} のライト色`);
   }
 });
 
-test("色：フォールバックが RGB 三つ組の形式になっている", () => {
+test("色：定義値がすべて RGB 三つ組の形式になっている", () => {
   for (const callout of CALLOUT_TYPES) {
-    assert.match(
-      callout.fallbackRgb,
-      /^\d{1,3}, \d{1,3}, \d{1,3}$/,
-      `${callout.type} のフォールバックが RGB 三つ組でない`,
-    );
+    for (const key of ["darkRgb", "lightRgb"] as const) {
+      assert.match(
+        callout[key],
+        /^\d{1,3}, \d{1,3}, \d{1,3}$/,
+        `${callout.type} の ${key} が RGB 三つ組でない`,
+      );
+    }
   }
 });
 
-test("色：アクセント色は変数とフォールバックを含む rgb() になる", () => {
+test("色：アクセント色はテーマに応じた解決済みの rgb() になる", () => {
   const note = CALLOUT_TYPES[0];
-  assert.equal(calloutAccentColor(note), "rgb(var(--callout-default, 8, 109, 221))");
+  assert.equal(calloutAccentColor(note, true), "rgb(2, 122, 255)");
+  assert.equal(calloutAccentColor(note, false), "rgb(8, 109, 221)");
+});
+
+test("色：アクセント色に var() を含めない（色が消える不具合の再発防止）", () => {
+  // `rgb(var(--callout-x, ...))` は、テーマが変数を RGB 三つ組以外
+  // （16進数・rgb()・色名・空）で再定義していると置換結果が不正になり、
+  // CSS の規定で border の宣言ごと破棄される。var() のフォールバックは
+  // 変数が「定義済み」であるため使われず、ボーダーが丸ごと消える。
+  // 解決済みの rgb() だけを渡すことでこの経路を断つ。
+  for (const callout of CALLOUT_TYPES) {
+    for (const isDark of [true, false]) {
+      const color = calloutAccentColor(callout, isDark);
+      assert.doesNotMatch(color, /var\(/, `${callout.type} に var() が含まれる`);
+      assert.match(
+        color,
+        /^rgb\(\d{1,3}, \d{1,3}, \d{1,3}\)$/,
+        `${callout.type} が解決済みの rgb() でない`,
+      );
+    }
+  }
+});
+
+test("色：ライトとダークで実際に値が変わる種別がある", () => {
+  const differing = CALLOUT_TYPES.filter((c) => c.darkRgb !== c.lightRgb);
+  assert.ok(differing.length >= 11, "ほとんどの種別はテーマで色が変わるはず");
 });
 
 test("文言キー：種別名から label/tip のキーを組み立てる", () => {
