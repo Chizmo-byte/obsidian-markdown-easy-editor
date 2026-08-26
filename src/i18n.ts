@@ -107,7 +107,8 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     tipCalloutQuestion: "For open questions and points still under discussion.",
     labelCalloutExample: "Example",
     tipCalloutExample: "For concrete examples and samples.",
-    labelCalloutQuote: "Quote",
+    // 「基本」セクションの Link/Quote ボタンと区別するため "block" を付けている
+    labelCalloutQuote: "Quote block",
     tipCalloutQuote: "For quoting a source or someone else's words.",
     labelCalloutAbstract: "Abstract",
     tipCalloutAbstract: "For a summary of the key points up front.",
@@ -225,7 +226,8 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     tipCalloutQuestion: "疑問点や検討中の論点を書き留める時に使います。",
     labelCalloutExample: "例",
     tipCalloutExample: "具体例やサンプルを示す時に使います。",
-    labelCalloutQuote: "引用",
+    // 「基本」セクションの「引用」ボタンと区別するため「ボックス」を付けている
+    labelCalloutQuote: "引用ボックス",
     tipCalloutQuote: "出典のある引用や他者の発言に使います。",
     labelCalloutAbstract: "要約",
     tipCalloutAbstract: "冒頭に要点をまとめる時に使います。",

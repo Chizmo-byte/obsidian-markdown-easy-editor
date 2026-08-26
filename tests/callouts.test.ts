@@ -90,7 +90,7 @@ test("文言：日本語ラベルが仕様どおり", () => {
   const expected: Record<string, string> = {
     note: "ノート", tip: "ヒント", important: "重要", warning: "警告",
     danger: "危険", info: "参考情報", success: "成功", question: "疑問",
-    example: "例", quote: "引用", abstract: "要約", bug: "不具合メモ",
+    example: "例", quote: "引用ボックス", abstract: "要約", bug: "不具合メモ",
   };
   for (const callout of CALLOUT_TYPES) {
     assert.equal(t(calloutStringKey("label", callout.type), "ja"), expected[callout.type]);
@@ -101,10 +101,32 @@ test("文言：英語ラベルが仕様どおり", () => {
   const expected: Record<string, string> = {
     note: "Note", tip: "Tip", important: "Important", warning: "Warning",
     danger: "Danger", info: "Info", success: "Success", question: "Question",
-    example: "Example", quote: "Quote", abstract: "Abstract", bug: "Bug",
+    example: "Example", quote: "Quote block", abstract: "Abstract", bug: "Bug",
   };
   for (const callout of CALLOUT_TYPES) {
     assert.equal(t(calloutStringKey("label", callout.type), "en"), expected[callout.type]);
+  }
+});
+
+test("文言：コールアウトのラベルが「基本」「その他」のボタンと重複しない", () => {
+  // 同じパネル内に同名のボタンが並ぶとどちらを押せばよいか分からなくなる。
+  // 特に quote は「基本」の引用（> ）と紛らわしいため区別している。
+  const otherButtonKeys = [
+    "labelBold", "labelItalic", "labelList", "labelNumber", "labelQuote", "labelLink",
+    "labelInlineCode", "labelCodeBlock", "labelTable", "labelCheck",
+    "labelStrikethrough", "labelDivider",
+  ];
+
+  for (const locale of ["en", "ja"] as const) {
+    const otherLabels = otherButtonKeys.map((key) => t(key, locale));
+    for (const callout of CALLOUT_TYPES) {
+      const label = t(calloutStringKey("label", callout.type), locale);
+      assert.equal(
+        otherLabels.includes(label),
+        false,
+        `${locale}: コールアウト「${label}」が他セクションのボタンと同名`,
+      );
+    }
   }
 });
 
