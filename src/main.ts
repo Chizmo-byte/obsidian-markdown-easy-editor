@@ -1,6 +1,7 @@
 import { Notice, Plugin, MarkdownView, ItemView, Setting, WorkspaceLeaf, getLanguage } from "obsidian";
 import { processMarkdownWithStats } from "./markdown-transformer";
 import { resolveLocale, t, tf, type Locale } from "./i18n";
+import { buildCalloutSnippet, calloutAccentColor, calloutStringKey, CALLOUT_TYPES } from "./callouts";
 
 /**
  * 記法ボタンの定義。
@@ -11,7 +12,8 @@ type ToolbarAction =
   | { kind: "line-prefix"; id: string; prefix: string; symbol: string; label: string; tip: string; shortcut: string }
   | { kind: "wrap"; id: string; marker: string; symbol: string; label: string; tip: string; shortcut: string }
   | { kind: "insert"; id: string; snippet: string; placeholder?: string; symbol: string; label: string; tip: string; shortcut: string }
-  | { kind: "link"; id: string; symbol: string; label: string; tip: string; shortcut: string };
+  | { kind: "link"; id: string; symbol: string; label: string; tip: string; shortcut: string }
+  | { kind: "callout"; id: string; calloutType: string; accentColor: string; titlePlaceholder: string; bodyPlaceholder: string; symbol: string; label: string; tip: string; shortcut: string };
 
 const HEADING_LEVELS = [1, 2, 3, 4, 5, 6] as const;
 
@@ -39,6 +41,24 @@ function buildBasicButtons(locale: Locale): ReadonlyArray<ToolbarAction> {
     { kind: "line-prefix", id: "quote", prefix: "> ", symbol: ">", label: t("labelQuote", locale), shortcut: t("shortcutQuote", locale), tip: t("tipQuote", locale) },
     { kind: "link", id: "link", symbol: "[]()", label: t("labelLink", locale), shortcut: t("shortcutLink", locale), tip: t("tipLink", locale) },
   ];
+}
+
+function buildCalloutButtons(locale: Locale): ReadonlyArray<ToolbarAction> {
+  const titlePlaceholder = t("calloutTitlePlaceholder", locale);
+  const bodyPlaceholder = t("calloutBodyPlaceholder", locale);
+
+  return CALLOUT_TYPES.map((callout) => ({
+    kind: "callout" as const,
+    id: `callout-${callout.type}`,
+    calloutType: callout.type,
+    accentColor: calloutAccentColor(callout),
+    titlePlaceholder,
+    bodyPlaceholder,
+    symbol: "[!]",
+    label: t(calloutStringKey("label", callout.type), locale),
+    shortcut: `> [!${callout.type}]`,
+    tip: t(calloutStringKey("tip", callout.type), locale),
+  }));
 }
 
 function buildMoreButtons(locale: Locale): ReadonlyArray<ToolbarAction> {
@@ -94,7 +114,7 @@ class MarkdownToolbarView extends ItemView {
       const sectionContent = details.createDiv({ attr: { style: "padding: 5px 0;" } });
       
       buttons.forEach((btn) => {
-        new Setting(sectionContent)
+        const setting = new Setting(sectionContent)
           .setName(`${btn.symbol}  ${btn.label}`)
           .setDesc(`${btn.shortcut} — ${btn.tip}`)
           .addButton((button) => {
@@ -105,12 +125,20 @@ class MarkdownToolbarView extends ItemView {
                 this.plugin.applyToolbarAction(btn);
               });
           });
+
+        // ソースモードでは挿入するまで実際の色が分からないため、
+        // コールアウトだけは行の左端に種別の色を細く出す
+        if (btn.kind === "callout") {
+          setting.settingEl.style.borderLeft = `3px solid ${btn.accentColor}`;
+          setting.settingEl.style.paddingLeft = "10px";
+        }
       });
     };
 
     renderSection(t("sectionHeadings", locale), buildHeadingButtons(locale), true);
     renderSection(t("sectionBasic", locale), buildBasicButtons(locale), true);
     renderSection(t("sectionMore", locale), buildMoreButtons(locale), false);
+    renderSection(t("sectionCallouts", locale), buildCalloutButtons(locale), false);
   }
 }
 
@@ -308,6 +336,29 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
           editor.setCursor({ line: editor.getCursor().line, ch: editor.getLine(editor.getCursor().line).length });
         }
       } 
+      else if (action.kind === "callout") {
+        // 選択範囲があれば本文として畳み込む（選択テキストを捨てない）
+        const snippet = buildCalloutSnippet(
+          action.calloutType,
+          action.titlePlaceholder,
+          action.bodyPlaceholder,
+          selection,
+        );
+
+        const startPos = editor.getCursor("from");
+        editor.replaceSelection(snippet);
+
+        // タイトルを選択状態にして、そのまま上書き入力できるようにする。
+        // 挿入位置以降を探すことで、同じ語が行の手前にあっても取り違えない。
+        const titleLine = editor.getLine(startPos.line);
+        const start = titleLine.indexOf(action.titlePlaceholder, startPos.ch);
+        if (start !== -1) {
+          editor.setSelection(
+            { line: startPos.line, ch: start },
+            { line: startPos.line, ch: start + action.titlePlaceholder.length }
+          );
+        }
+      }
       else if (action.kind === "link") {
         const linkText = selection || t("linkTextDefault", this.locale);
         const url = "URL";

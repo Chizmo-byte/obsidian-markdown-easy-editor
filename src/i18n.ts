@@ -26,6 +26,7 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     sectionHeadings: "Headings",
     sectionBasic: "Basic",
     sectionMore: "More",
+    sectionCallouts: "Callouts",
 
     // 見出し
     labelH1: "H1",
@@ -87,11 +88,39 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     shortcutDivider: "---",
     tipDivider: "Adds a horizontal rule where the topic changes.",
 
+    // コールアウト（表示順は callouts.ts の CALLOUT_TYPES に合わせる）
+    labelCalloutNote: "Note",
+    tipCalloutNote: "For general supplementary information.",
+    labelCalloutTip: "Tip",
+    tipCalloutTip: "For a handy trick or a recommendation.",
+    labelCalloutImportant: "Important",
+    tipCalloutImportant: "For a point you want to stand out.",
+    labelCalloutWarning: "Warning",
+    tipCalloutWarning: "For something the reader should be careful about.",
+    labelCalloutDanger: "Danger",
+    tipCalloutDanger: "For risky steps that could cause loss or damage.",
+    labelCalloutInfo: "Info",
+    tipCalloutInfo: "For extra background worth knowing.",
+    labelCalloutSuccess: "Success",
+    tipCalloutSuccess: "For a result that worked, or the recommended approach.",
+    labelCalloutQuestion: "Question",
+    tipCalloutQuestion: "For open questions and points still under discussion.",
+    labelCalloutExample: "Example",
+    tipCalloutExample: "For concrete examples and samples.",
+    labelCalloutQuote: "Quote",
+    tipCalloutQuote: "For quoting a source or someone else's words.",
+    labelCalloutAbstract: "Abstract",
+    tipCalloutAbstract: "For a summary of the key points up front.",
+    labelCalloutBug: "Bug",
+    tipCalloutBug: "For known defects and reproduction notes.",
+
     // 挿入されるテンプレートの中身
     placeholderCode: "your code here",
     placeholderTodo: "To-do",
     snippetTable: "| Item | Details |\n| --- | --- |\n| Example | Description |",
     linkTextDefault: "link text",
+    calloutTitlePlaceholder: "Title",
+    calloutBodyPlaceholder: "Body text here",
 
     // 通知
     noticeNoMarkdownNote: "Open a Markdown note to use this command.",
@@ -115,6 +144,7 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     sectionHeadings: "見出し",
     sectionBasic: "基本",
     sectionMore: "その他",
+    sectionCallouts: "コールアウト",
 
     // 見出し
     labelH1: "H1",
@@ -176,11 +206,39 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     shortcutDivider: "---",
     tipDivider: "話題の変わり目に水平線を入れます。",
 
+    // コールアウト（表示順は callouts.ts の CALLOUT_TYPES に合わせる）
+    labelCalloutNote: "ノート",
+    tipCalloutNote: "一般的な補足情報に使います。",
+    labelCalloutTip: "ヒント",
+    tipCalloutTip: "ちょっとしたコツやおすすめを伝える時に使います。",
+    labelCalloutImportant: "重要",
+    tipCalloutImportant: "特に強調して伝えたい要点に使います。",
+    labelCalloutWarning: "警告",
+    tipCalloutWarning: "注意喚起したい内容に使います。",
+    labelCalloutDanger: "危険",
+    tipCalloutDanger: "事故や損失につながる危険な操作に使います。",
+    labelCalloutInfo: "参考情報",
+    tipCalloutInfo: "知っておくと役立つ補助的な情報に使います。",
+    labelCalloutSuccess: "成功",
+    tipCalloutSuccess: "うまくいった結果や推奨されるやり方に使います。",
+    labelCalloutQuestion: "疑問",
+    tipCalloutQuestion: "疑問点や検討中の論点を書き留める時に使います。",
+    labelCalloutExample: "例",
+    tipCalloutExample: "具体例やサンプルを示す時に使います。",
+    labelCalloutQuote: "引用",
+    tipCalloutQuote: "出典のある引用や他者の発言に使います。",
+    labelCalloutAbstract: "要約",
+    tipCalloutAbstract: "冒頭に要点をまとめる時に使います。",
+    labelCalloutBug: "不具合メモ",
+    tipCalloutBug: "既知の不具合や再現手順のメモに使います。",
+
     // 挿入されるテンプレートの中身
     placeholderCode: "ここにコード",
     placeholderTodo: "やること",
     snippetTable: "| 項目 | 内容 |\n| --- | --- |\n| 例 | 説明 |",
     linkTextDefault: "リンク文字列",
+    calloutTitlePlaceholder: "タイトル",
+    calloutBodyPlaceholder: "本文をここに入力",
 
     // 通知
     noticeNoMarkdownNote: "Markdownノートを開いてから使用してください。",
