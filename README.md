@@ -16,6 +16,12 @@ Click the pencil icon in the ribbon to open a side panel with quick-access butto
 
 Each button applies formatting to your current selection (or inserts a template at the cursor) in the active note — no need to remember syntax or type symbols manually.
 
+### 🎨 Callouts
+
+Insert Obsidian's colorful callout boxes (Note, Tip, Important, Warning, Danger, Info, Success, Question, Example, Quote block, Abstract, Bug) with one click. Each button shows a color accent matching how it will actually render, so you know what you're picking even before switching to Reading view.
+
+![Callouts panel](screenshots/callouts-panel.png)
+
 ### ✨ Optimize Selected Markdown
 
 Select any text and run **Optimize Selected Markdown** from the command palette. This cleans up common issues in Markdown that wasn't originally written for Obsidian — for example, text copied from an AI assistant's response:
