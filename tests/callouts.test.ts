@@ -85,7 +85,11 @@ test("色：アクセント色に var() を含めない（色が消える不具�
   // （16進数・rgb()・色名・空）で再定義していると置換結果が不正になり、
   // CSS の規定で border の宣言ごと破棄される。var() のフォールバックは
   // 変数が「定義済み」であるため使われず、ボーダーが丸ごと消える。
-  // 解決済みの rgb() だけを渡すことでこの経路を断つ。
+  // 解決済みの色だけを渡すことでこの経路を断つ。
+  //
+  // この危険は値の適用方法（style.setProperty / setCssStyles / CSS クラス）に
+  // よらず、値そのものに var() を含めた時点で生じる。適用方法を変えても
+  // このテストは同じ意味を持ち続ける。
   for (const callout of CALLOUT_TYPES) {
     for (const isDark of [true, false]) {
       const color = calloutAccentColor(callout, isDark);

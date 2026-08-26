@@ -129,18 +129,23 @@ class MarkdownToolbarView extends ItemView {
         // ソースモードでは挿入するまで実際の色が分からないため、
         // コールアウトだけは行の左端に種別の色を出す。角丸を落とし、
         // 12行が縦に伸びすぎないよう上下の余白も詰める。
-        // ショートハンドではなく個別プロパティに important 付きで指定する。
-        // テーマが .setting-item の border を !important で潰していても勝てるようにするため。
+        //
+        // style.setProperty を直接叩くと審査ルール
+        // obsidianmd/no-static-styles-assignment に抵触するため、
+        // Obsidian が用意している setCssStyles を使う。
+        // 色は種別×テーマで変わる動的な値なので、CSS クラスではなくここで指定する。
+        //
         // この分岐に入るのは kind が callout のときだけで、他セクションには一切影響しない。
         if (btn.kind === "callout") {
-          const el = setting.settingEl;
-          el.style.setProperty("border-left-width", CALLOUT_BUTTON_STYLE.borderLeftWidth, "important");
-          el.style.setProperty("border-left-style", "solid", "important");
-          el.style.setProperty("border-left-color", btn.accentColor, "important");
-          el.style.setProperty("border-radius", CALLOUT_BUTTON_STYLE.borderRadius, "important");
-          el.style.setProperty("padding-left", CALLOUT_BUTTON_STYLE.paddingLeft, "important");
-          el.style.setProperty("padding-top", CALLOUT_BUTTON_STYLE.paddingBlock, "important");
-          el.style.setProperty("padding-bottom", CALLOUT_BUTTON_STYLE.paddingBlock, "important");
+          setting.settingEl.setCssStyles({
+            borderLeftWidth: CALLOUT_BUTTON_STYLE.borderLeftWidth,
+            borderLeftStyle: "solid",
+            borderLeftColor: btn.accentColor,
+            borderRadius: CALLOUT_BUTTON_STYLE.borderRadius,
+            paddingLeft: CALLOUT_BUTTON_STYLE.paddingLeft,
+            paddingTop: CALLOUT_BUTTON_STYLE.paddingBlock,
+            paddingBottom: CALLOUT_BUTTON_STYLE.paddingBlock,
+          });
         }
       });
     };
