@@ -102,6 +102,9 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     noticeActionError: "Something went wrong while applying the formatting.",
     noticeSelectText: "Select some text to optimize.",
     noticeOptimized: "Markdown optimized.",
+    noticeOptimizedWithRemoval: "Markdown optimized ({count} intro {unit} removed).",
+    introLineUnit: "line",
+    introLineUnitPlural: "lines",
     noticeOptimizeError: "Something went wrong while optimizing.",
   },
 
@@ -187,6 +190,9 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     noticeActionError: "記法の適用中にエラーが発生しました。",
     noticeSelectText: "最適化するテキストを選択してください。",
     noticeOptimized: "Markdownを最適化しました。",
+    noticeOptimizedWithRemoval: "Markdownを最適化しました（前置き文を{count}{unit}削除）。",
+    introLineUnit: "行",
+    introLineUnitPlural: "行",
     noticeOptimizeError: "最適化中にエラーが発生しました。",
   },
 };
@@ -194,4 +200,19 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
 /** 指定ロケールの文言を返す。未定義キーは英語 → キー名の順にフォールバックする。 */
 export function t(key: string, locale: Locale): string {
   return STRINGS[locale][key] ?? STRINGS.en[key] ?? key;
+}
+
+/**
+ * 文言中の `{name}` を vars の値で差し替えて返す。
+ * 語順が言語によって変わるため、文字列連結ではなくテンプレートで持たせている。
+ * vars に無いプレースホルダーはそのまま残す（欠落に気づけるようにするため）。
+ */
+export function tf(
+  key: string,
+  locale: Locale,
+  vars: Record<string, string | number>,
+): string {
+  return t(key, locale).replace(/\{(\w+)\}/g, (match, name: string) =>
+    name in vars ? String(vars[name]) : match,
+  );
 }

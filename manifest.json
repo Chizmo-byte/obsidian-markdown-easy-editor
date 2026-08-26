@@ -1,7 +1,7 @@
 {
   "id": "markdown-easy-editor",
   "name": "Markdown Easy Editor",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "minAppVersion": "1.8.7",
   "description": "Adds a Markdown formatting toolbar and an Optimize command for cleaning up messy Markdown.",
   "author": "Chizmo",

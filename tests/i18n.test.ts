@@ -1,7 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { resolveLocale, STRINGS, t } from "../src/i18n.ts";
+import { resolveLocale, STRINGS, t, tf } from "../src/i18n.ts";
+
+/** main.ts の optimizeSelection と同じ組み立て方で通知文を作る。 */
+function optimizeNotice(count: number, locale: "en" | "ja"): string {
+  if (count === 0) return t("noticeOptimized", locale);
+  const unitKey = count === 1 ? "introLineUnit" : "introLineUnitPlural";
+  return tf("noticeOptimizedWithRemoval", locale, { count, unit: t(unitKey, locale) });
+}
 
 const enKeys = Object.keys(STRINGS.en).sort();
 const jaKeys = Object.keys(STRINGS.ja).sort();
@@ -29,6 +36,44 @@ test("言語判定：ja で始まらない j 系のコードは巻き込まな�
   // Obsidian の対応言語で ja から始まるのは日本語のみなので実害はない。
   assert.equal(resolveLocale("jv"), "en");
   assert.equal(resolveLocale("jv-ID"), "en");
+});
+
+test("tf()：プレースホルダーを差し替える", () => {
+  assert.equal(tf("noticeOptimizedWithRemoval", "ja", { count: 3, unit: "行" }),
+    "Markdownを最適化しました（前置き文を3行削除）。");
+  assert.equal(tf("noticeOptimizedWithRemoval", "en", { count: 3, unit: "lines" }),
+    "Markdown optimized (3 intro lines removed).");
+});
+
+test("tf()：値が渡されなかったプレースホルダーは残す", () => {
+  // 差し替え漏れを黙って空文字にせず、目に見える形で残す
+  assert.equal(tf("noticeOptimizedWithRemoval", "en", {}),
+    "Markdown optimized ({count} intro {unit} removed).");
+});
+
+test("通知：削除0件なら従来どおりの文言", () => {
+  assert.equal(optimizeNotice(0, "ja"), "Markdownを最適化しました。");
+  assert.equal(optimizeNotice(0, "en"), "Markdown optimized.");
+});
+
+test("通知：削除1件なら件数入りの文言（英語は単数形）", () => {
+  assert.equal(optimizeNotice(1, "ja"), "Markdownを最適化しました（前置き文を1行削除）。");
+  assert.equal(optimizeNotice(1, "en"), "Markdown optimized (1 intro line removed).");
+});
+
+test("通知：削除2件以上なら英語は複数形になる", () => {
+  assert.equal(optimizeNotice(2, "ja"), "Markdownを最適化しました（前置き文を2行削除）。");
+  assert.equal(optimizeNotice(2, "en"), "Markdown optimized (2 intro lines removed).");
+  assert.equal(optimizeNotice(10, "en"), "Markdown optimized (10 intro lines removed).");
+});
+
+test("通知：件数入りの文言にプレースホルダーが残らない", () => {
+  for (const locale of ["en", "ja"] as const) {
+    for (const count of [1, 2, 5]) {
+      assert.doesNotMatch(optimizeNotice(count, locale), /\{\w+\}/,
+        `${locale} / ${count} 件でプレースホルダーが残っている`);
+    }
+  }
 });
 
 test("辞書：en と ja のキー集合が完全に一致する", () => {

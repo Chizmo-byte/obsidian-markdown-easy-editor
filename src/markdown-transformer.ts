@@ -9,19 +9,46 @@ export type ProcessMode = "easy" | "optimize";
 /** 出力先プラットフォーム（optimize モードでのみ参照）。 */
 export type TargetPlatform = "note" | "brain" | "obsidian";
 
+/** 整形結果と、利用者に伝えるべき副作用の内訳。 */
+export interface ProcessResult {
+  /** 整形後のマークダウン。 */
+  text: string;
+  /** AI前置き文として削除した行数。easy モードでは常に 0。 */
+  removedIntroCount: number;
+}
+
+/**
+ * マークダウンを整形し、削除内訳つきで返す。
+ * 何行消えたかを利用者に通知したい場合はこちらを使う。
+ */
+export function processMarkdownWithStats(
+  text: string,
+  mode: ProcessMode,
+  target?: TargetPlatform,
+): ProcessResult {
+  const normalized = applyCommonRules(text);
+
+  if (mode === "easy") {
+    return { text: applyCommonRules(applyEasyMode(normalized)), removedIntroCount: 0 };
+  }
+
+  const optimized = applyOptimizeMode(normalized, target);
+  return {
+    text: applyCommonRules(optimized.text),
+    removedIntroCount: optimized.removedIntroCount,
+  };
+}
+
 /**
  * マークダウンを整形して返す。
+ * 削除内訳が不要な呼び出し元のための薄いラッパー。
  */
 export function processMarkdown(
   text: string,
   mode: ProcessMode,
   target?: TargetPlatform,
 ): string {
-  let result = applyCommonRules(text);
-  result = mode === "easy"
-    ? applyEasyMode(result)
-    : applyOptimizeMode(result, target);
-  return applyCommonRules(result);
+  return processMarkdownWithStats(text, mode, target).text;
 }
 
 function applyCommonRules(text: string): string {
@@ -117,8 +144,9 @@ function collapseDecorationRuns(text: string): string {
   return out.join("\n");
 }
 
-function applyOptimizeMode(text: string, target?: TargetPlatform): string {
-  let result = removeAiIntro(text);
+function applyOptimizeMode(text: string, target?: TargetPlatform): ProcessResult {
+  const intro = removeAiIntro(text);
+  let result = intro.text;
   result = stripObsidianSyntax(result);
   result = normalizeCallouts(result);
   result = reduceExcessiveBold(result);
@@ -133,7 +161,7 @@ function applyOptimizeMode(text: string, target?: TargetPlatform): string {
     result = dedentDeepLists(result);
   }
 
-  return result;
+  return { text: result, removedIntroCount: intro.removedCount };
 }
 
 const AI_INTRO_PATTERNS: readonly RegExp[] = [
@@ -155,16 +183,17 @@ const AI_INTRO_PATTERNS_EN: readonly RegExp[] = [
   /^(here'?s|here is|below is)\s+(the|a|an|your)\b.*\b(explanation|summary|breakdown|overview|outline|answer|code|snippet|example|markdown|draft|revision|translation|list)\b.*$/i,
 ];
 
-function removeAiIntro(text: string): string {
-  return text
-    .split("\n")
-    .filter((line) => {
-      const trimmed = line.trim();
-      const isJapaneseIntro = AI_INTRO_PATTERNS.some((pattern) => pattern.test(trimmed));
-      const isEnglishIntro = AI_INTRO_PATTERNS_EN.some((pattern) => pattern.test(trimmed));
-      return !isJapaneseIntro && !isEnglishIntro;
-    })
-    .join("\n");
+/** 前置き文を除いた本文と、削除した行数を返す。件数は利用者への通知に使う。 */
+function removeAiIntro(text: string): { text: string; removedCount: number } {
+  const lines = text.split("\n");
+  const kept = lines.filter((line) => {
+    const trimmed = line.trim();
+    const isJapaneseIntro = AI_INTRO_PATTERNS.some((pattern) => pattern.test(trimmed));
+    const isEnglishIntro = AI_INTRO_PATTERNS_EN.some((pattern) => pattern.test(trimmed));
+    return !isJapaneseIntro && !isEnglishIntro;
+  });
+
+  return { text: kept.join("\n"), removedCount: lines.length - kept.length };
 }
 
 function stripObsidianSyntax(text: string): string {

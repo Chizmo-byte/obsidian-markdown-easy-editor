@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { processMarkdown } from "../src/markdown-transformer.ts";
+import { processMarkdown, processMarkdownWithStats } from "../src/markdown-transformer.ts";
 
 /** optimize モード（見出し補正・コールアウト正規化が動くモード）で整形する。 */
 function optimize(text: string): string {
@@ -91,6 +91,72 @@ test("コールアウト：> が無い行は引用に整形しつつタグを保
 
 test("コールアウト：折りたたみ記号付きでもタグを保持する", () => {
   assert.equal(optimize("> [!note]- 本文"), "> [!note] 本文");
+});
+
+// --- 削除件数の報告（removedIntroCount） ---
+
+test("削除件数：前置き文が無ければ 0", () => {
+  const result = processMarkdownWithStats("# Title\n\n本文です。", "optimize");
+  assert.equal(result.removedIntroCount, 0);
+  assert.equal(result.text, "# Title\n\n本文です。");
+});
+
+test("削除件数：前置き文が1行なら 1", () => {
+  const result = processMarkdownWithStats("Sure, here's the explanation.\n\n# Title", "optimize");
+  assert.equal(result.removedIntroCount, 1);
+  assert.equal(result.text, "# Title");
+});
+
+test("削除件数：日本語の前置き文1行でも 1", () => {
+  const result = processMarkdownWithStats("承知しました。以下にまとめます。\n\n# Title", "optimize");
+  assert.equal(result.removedIntroCount, 1);
+  assert.equal(result.text, "# Title");
+});
+
+test("削除件数：日英が混在する複数行を正しく数える", () => {
+  const input = [
+    "承知しました。以下にまとめます。",
+    "Sure, here's the explanation.",
+    "こちらが整理した内容です。",
+    "Certainly! Here's the code.",
+    "",
+    "# Title",
+  ].join("\n");
+  const result = processMarkdownWithStats(input, "optimize");
+  assert.equal(result.removedIntroCount, 4);
+  assert.equal(result.text, "# Title");
+});
+
+test("削除件数：easy モードでは前置き文を消さないので常に 0", () => {
+  const result = processMarkdownWithStats("Sure, here's the explanation.\n\n# Title", "easy");
+  assert.equal(result.removedIntroCount, 0);
+  assert.equal(result.text, "Sure, here's the explanation.\n\n# Title");
+});
+
+test("削除件数：本文だけが残り、通常の行は数に入らない", () => {
+  const result = processMarkdownWithStats("Here's my cat photo from yesterday.", "optimize");
+  assert.equal(result.removedIntroCount, 0);
+});
+
+test("後方互換：processMarkdown は従来どおり文字列を返す", () => {
+  const input = "Sure, here's the explanation.\n\n# Title";
+  const legacy = processMarkdown(input, "optimize");
+  assert.equal(typeof legacy, "string");
+  assert.equal(legacy, "# Title");
+  // 新旧の API が同じ本文を返すこと
+  assert.equal(legacy, processMarkdownWithStats(input, "optimize").text);
+});
+
+test("後方互換：target 引数付きの呼び出しも従来どおり動く", () => {
+  const input = "| 項目 | 内容 |\n| --- | --- |\n| 例 | 説明 |";
+  assert.equal(
+    processMarkdown(input, "optimize", "obsidian"),
+    processMarkdownWithStats(input, "optimize", "obsidian").text,
+  );
+  assert.equal(
+    processMarkdown(input, "optimize", "note"),
+    processMarkdownWithStats(input, "optimize", "note").text,
+  );
 });
 
 // --- AI前置き文の除去（英語） ---

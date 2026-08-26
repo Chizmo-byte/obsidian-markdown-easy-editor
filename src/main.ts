@@ -1,6 +1,6 @@
 import { Notice, Plugin, MarkdownView, ItemView, Setting, WorkspaceLeaf, getLanguage } from "obsidian";
-import { processMarkdown } from "./markdown-transformer";
-import { resolveLocale, t, type Locale } from "./i18n";
+import { processMarkdownWithStats } from "./markdown-transformer";
+import { resolveLocale, t, tf, type Locale } from "./i18n";
 
 /**
  * 記法ボタンの定義。
@@ -347,9 +347,19 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
     }
 
     try {
-      const optimizedText = processMarkdown(selection, "optimize", "obsidian");
-      editor.replaceSelection(optimizedText);
-      new Notice(t("noticeOptimized", this.locale));
+      const { text, removedIntroCount } = processMarkdownWithStats(selection, "optimize", "obsidian");
+      editor.replaceSelection(text);
+
+      // 前置き文を消したときは、黙って消さずに件数を知らせる
+      if (removedIntroCount > 0) {
+        const unitKey = removedIntroCount === 1 ? "introLineUnit" : "introLineUnitPlural";
+        new Notice(tf("noticeOptimizedWithRemoval", this.locale, {
+          count: removedIntroCount,
+          unit: t(unitKey, this.locale),
+        }));
+      } else {
+        new Notice(t("noticeOptimized", this.locale));
+      }
     } catch (e) {
       console.error("Markdown optimize error:", e);
       new Notice(t("noticeOptimizeError", this.locale));
