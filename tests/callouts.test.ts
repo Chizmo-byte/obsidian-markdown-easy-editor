@@ -5,6 +5,8 @@ import {
   buildCalloutSnippet,
   calloutAccentColor,
   calloutStringKey,
+  CALLOUT_ACCENT_ALPHA,
+  CALLOUT_BUTTON_STYLE,
   CALLOUT_TYPES,
 } from "../src/callouts.ts";
 import { STRINGS, t } from "../src/i18n.ts";
@@ -60,10 +62,22 @@ test("色：定義値がすべて RGB 三つ組の形式になっている", () 
   }
 });
 
-test("色：アクセント色はテーマに応じた解決済みの rgb() になる", () => {
+test("色：アクセント色はテーマに応じた解決済みの rgba() になる", () => {
   const note = CALLOUT_TYPES[0];
-  assert.equal(calloutAccentColor(note, true), "rgb(2, 122, 255)");
-  assert.equal(calloutAccentColor(note, false), "rgb(8, 109, 221)");
+  assert.equal(calloutAccentColor(note, true), "rgba(2, 122, 255, 0.5)");
+  assert.equal(calloutAccentColor(note, false), "rgba(8, 109, 221, 0.5)");
+});
+
+test("色：主張を抑えるため透過させている", () => {
+  assert.ok(CALLOUT_ACCENT_ALPHA > 0 && CALLOUT_ACCENT_ALPHA < 1, "透過していない");
+  for (const callout of CALLOUT_TYPES) {
+    for (const isDark of [true, false]) {
+      assert.ok(
+        calloutAccentColor(callout, isDark).endsWith(`, ${CALLOUT_ACCENT_ALPHA})`),
+        `${callout.type} にアルファが付いていない`,
+      );
+    }
+  }
 });
 
 test("色：アクセント色に var() を含めない（色が消える不具合の再発防止）", () => {
@@ -78,8 +92,8 @@ test("色：アクセント色に var() を含めない（色が消える不具�
       assert.doesNotMatch(color, /var\(/, `${callout.type} に var() が含まれる`);
       assert.match(
         color,
-        /^rgb\(\d{1,3}, \d{1,3}, \d{1,3}\)$/,
-        `${callout.type} が解決済みの rgb() でない`,
+        /^rgba\(\d{1,3}, \d{1,3}, \d{1,3}, [\d.]+\)$/,
+        `${callout.type} が解決済みの rgba() でない`,
       );
     }
   }
@@ -152,6 +166,21 @@ test("文言：コールアウトのラベルが「基本」「その他」の�
       );
     }
   }
+});
+
+test("見た目：色の線が視認できる太さになっている", () => {
+  const width = Number.parseInt(CALLOUT_BUTTON_STYLE.borderLeftWidth, 10);
+  assert.ok(width >= 4, `線が細い: ${CALLOUT_BUTTON_STYLE.borderLeftWidth}`);
+});
+
+test("見た目：角丸を落としている", () => {
+  assert.equal(Number.parseInt(CALLOUT_BUTTON_STYLE.borderRadius, 10), 0);
+});
+
+test("見た目：上下の余白が Obsidian 既定（16px）より詰まっている", () => {
+  // 12行並ぶため、既定のままだとセクションが縦に長くなりすぎる
+  const pad = Number.parseInt(CALLOUT_BUTTON_STYLE.paddingBlock, 10);
+  assert.ok(pad > 0 && pad < 16, `余白が詰まっていない: ${CALLOUT_BUTTON_STYLE.paddingBlock}`);
 });
 
 // --- 挿入されるスニペット ---

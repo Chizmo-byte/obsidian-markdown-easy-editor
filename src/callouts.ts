@@ -46,12 +46,36 @@ export const CALLOUT_TYPES: ReadonlyArray<CalloutType> = [
 ];
 
 /**
+ * アクセント線の不透明度。
+ * 生の値のままだとパレット上で主張が強すぎるため、背景と混ぜて落ち着かせる。
+ * アルファで背景と合成させることで、ライト/ダークどちらでも自然に馴染む。
+ */
+export const CALLOUT_ACCENT_ALPHA = 0.5;
+
+/**
  * パレットのボタンに引くアクセント色を返す。
- * 必ず解決済みの `rgb(r, g, b)` を返し、var() は一切含めない。
+ * 必ず解決済みの `rgba(r, g, b, a)` を返し、var() は一切含めない
+ * （var() を挟むと置換失敗時に宣言ごと破棄され、線が消える）。
  */
 export function calloutAccentColor(callout: CalloutType, isDarkTheme: boolean): string {
-  return `rgb(${isDarkTheme ? callout.darkRgb : callout.lightRgb})`;
+  const rgb = isDarkTheme ? callout.darkRgb : callout.lightRgb;
+  return `rgba(${rgb}, ${CALLOUT_ACCENT_ALPHA})`;
 }
+
+/**
+ * コールアウトのボタン行だけに当てる寸法。
+ * 「見出し」「基本」「その他」のボタンには適用しないこと。
+ */
+export const CALLOUT_BUTTON_STYLE = {
+  /** 色の線の太さ。 */
+  borderLeftWidth: "5px",
+  /** このセクションだけ角丸を落として、色の線を端まで見せる。 */
+  borderRadius: "0",
+  /** 線と本文の間隔。 */
+  paddingLeft: "10px",
+  /** 12行並ぶため、上下の余白を Obsidian 既定の 16px から詰める。 */
+  paddingBlock: "6px",
+} as const;
 
 /** i18n の文言キー。`note` → `labelCalloutNote` / `tipCalloutNote`。 */
 export function calloutStringKey(prefix: "label" | "tip", type: string): string {
