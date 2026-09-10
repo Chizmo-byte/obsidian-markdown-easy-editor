@@ -34,6 +34,9 @@ Select any text and run **Optimize Selected Markdown** from the command palette.
 - Collapses long runs of `---`/`***`/`___` decoration lines
 - Strips AI-generated intro phrases (e.g. "Sure, here's the explanation...")
 - Converts Obsidian-specific syntax (`[[wikilinks]]`, `^block-refs`) into plain text/links
+
+  > AI-generated `[[WikiLinks]]` often point to notes that don't exist in your vault. Optimize removes these to keep pasted AI content clean. If you intentionally use WikiLinks, just don't select that part of the text before running Optimize.
+
 - Normalizes callout syntax (`> [!note]`)
 - Reduces excessive bold formatting when overused in a single line
 - Optionally converts tables to bullet lists for note-taking targets
