@@ -258,3 +258,68 @@ test("コールアウトと見出しが混在しても双方が正しく処理�
     "# タイトル\n\n> [!warning] 注意",
   );
 });
+
+// --- optimize オプション（個別 on/off） ---
+
+test("オプション省略：従来どおり全処理が有効", () => {
+  assert.equal(
+    processMarkdown("[[ノート名]]\n\n本文 ^abc123\n\nSure, here's the explanation.\n\n**a** **b** **c**", "optimize"),
+    "ノート名\n\n本文\n\na b c",
+  );
+});
+
+test("オプション：removeWikilinks=false なら [[wikilink]] をそのまま残す", () => {
+  assert.equal(
+    processMarkdown("[[ノート名]]", "optimize", undefined, { removeWikilinks: false }),
+    "[[ノート名]]",
+  );
+});
+
+test("オプション：removeWikilinks 省略時（true 扱い）は従来どおり変換する", () => {
+  assert.equal(
+    processMarkdown("[[ノート名]]", "optimize", undefined, {}),
+    "ノート名",
+  );
+});
+
+test("オプション：removeBlockRefs=false なら ^block-id をそのまま残す", () => {
+  assert.equal(
+    processMarkdown("本文 ^abc123", "optimize", undefined, { removeBlockRefs: false }),
+    "本文 ^abc123",
+  );
+});
+
+test("オプション：stripAiIntro=false ならAI前置き文を残し、removedIntroCount も 0 になる", () => {
+  const input = "Sure, here's the explanation.\n\n# Title";
+  const result = processMarkdownWithStats(input, "optimize", undefined, { stripAiIntro: false });
+  assert.equal(result.text, input);
+  assert.equal(result.removedIntroCount, 0);
+});
+
+test("オプション：reduceBold=false なら過剰な太字をそのまま残す", () => {
+  const input = "**a** **b** **c**";
+  assert.equal(
+    processMarkdown(input, "optimize", undefined, { reduceBold: false }),
+    input,
+  );
+});
+
+test("オプション：4項目すべて false でも他の整形（見出し補正等）は動く", () => {
+  const allOff = {
+    removeWikilinks: false,
+    removeBlockRefs: false,
+    stripAiIntro: false,
+    reduceBold: false,
+  };
+  assert.equal(
+    processMarkdown("#タイトル\n\n[[リンク]] ^ref1 **a** **b** **c**", "optimize", undefined, allOff),
+    "# タイトル\n\n[[リンク]] ^ref1 **a** **b** **c**",
+  );
+});
+
+test("オプション：easy モードでは options を渡しても無視される", () => {
+  assert.equal(
+    processMarkdown("[[ノート名]]", "easy", undefined, { removeWikilinks: false }),
+    "[[ノート名]]",
+  );
+});

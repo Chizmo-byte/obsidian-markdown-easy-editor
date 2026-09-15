@@ -9,22 +9,46 @@ export type ProcessMode = "easy" | "optimize";
 /** 出力先プラットフォーム（optimize モードでのみ参照）。 */
 export type TargetPlatform = "note" | "brain" | "obsidian";
 
+/**
+ * optimize モードの各処理を個別に on/off するためのオプション。
+ * すべて省略可能で、省略時は全項目 true（従来どおりの挙動）になる。
+ */
+export interface OptimizeOptions {
+  /** `[[wikilinks]]` を表示テキストへ変換するか。 */
+  removeWikilinks?: boolean;
+  /** 末尾の `^block-id` を除去するか。 */
+  removeBlockRefs?: boolean;
+  /** AI前置き文（「承知しました、以下に...」等）を除去するか。 */
+  stripAiIntro?: boolean;
+  /** 1行に太字が集中している場合に強調を解除するか。 */
+  reduceBold?: boolean;
+}
+
+const DEFAULT_OPTIMIZE_OPTIONS: Required<OptimizeOptions> = {
+  removeWikilinks: true,
+  removeBlockRefs: true,
+  stripAiIntro: true,
+  reduceBold: true,
+};
+
 /** 整形結果と、利用者に伝えるべき副作用の内訳。 */
 export interface ProcessResult {
   /** 整形後のマークダウン。 */
   text: string;
-  /** AI前置き文として削除した行数。easy モードでは常に 0。 */
+  /** AI前置き文として削除した行数。easy モードや stripAiIntro=false では常に 0。 */
   removedIntroCount: number;
 }
 
 /**
  * マークダウンを整形し、削除内訳つきで返す。
  * 何行消えたかを利用者に通知したい場合はこちらを使う。
+ * options は optimize モードでのみ参照され、省略時は全項目 true（従来どおり）。
  */
 export function processMarkdownWithStats(
   text: string,
   mode: ProcessMode,
   target?: TargetPlatform,
+  options?: OptimizeOptions,
 ): ProcessResult {
   const normalized = applyCommonRules(text);
 
@@ -32,7 +56,7 @@ export function processMarkdownWithStats(
     return { text: applyCommonRules(applyEasyMode(normalized)), removedIntroCount: 0 };
   }
 
-  const optimized = applyOptimizeMode(normalized, target);
+  const optimized = applyOptimizeMode(normalized, target, options);
   return {
     text: applyCommonRules(optimized.text),
     removedIntroCount: optimized.removedIntroCount,
@@ -47,8 +71,9 @@ export function processMarkdown(
   text: string,
   mode: ProcessMode,
   target?: TargetPlatform,
+  options?: OptimizeOptions,
 ): string {
-  return processMarkdownWithStats(text, mode, target).text;
+  return processMarkdownWithStats(text, mode, target, options).text;
 }
 
 function applyCommonRules(text: string): string {
@@ -144,12 +169,26 @@ function collapseDecorationRuns(text: string): string {
   return out.join("\n");
 }
 
-function applyOptimizeMode(text: string, target?: TargetPlatform): ProcessResult {
-  const intro = removeAiIntro(text);
-  let result = intro.text;
-  result = stripObsidianSyntax(result);
+function applyOptimizeMode(
+  text: string,
+  target?: TargetPlatform,
+  options?: OptimizeOptions,
+): ProcessResult {
+  const opts = { ...DEFAULT_OPTIMIZE_OPTIONS, ...options };
+
+  let result = text;
+  let removedIntroCount = 0;
+
+  if (opts.stripAiIntro) {
+    const intro = removeAiIntro(result);
+    result = intro.text;
+    removedIntroCount = intro.removedCount;
+  }
+
+  if (opts.removeWikilinks) result = stripWikilinks(result);
+  if (opts.removeBlockRefs) result = stripBlockRefs(result);
   result = normalizeCallouts(result);
-  result = reduceExcessiveBold(result);
+  if (opts.reduceBold) result = reduceExcessiveBold(result);
 
   result = fixMissingHeadingSpace(result);
   result = ensureHeadingSpacing(result);
@@ -161,7 +200,7 @@ function applyOptimizeMode(text: string, target?: TargetPlatform): ProcessResult
     result = dedentDeepLists(result);
   }
 
-  return { text: result, removedIntroCount: intro.removedCount };
+  return { text: result, removedIntroCount };
 }
 
 const AI_INTRO_PATTERNS: readonly RegExp[] = [
@@ -196,14 +235,17 @@ function removeAiIntro(text: string): { text: string; removedCount: number } {
   return { text: kept.join("\n"), removedCount: lines.length - kept.length };
 }
 
-function stripObsidianSyntax(text: string): string {
-  let result = text;
-  result = result.replace(/\[\[([^[\]]+)\]\]/g, (_match, inner: string) => {
+/** `[[wikilink]]` / `[[path|表示名]]` を表示テキストへ変換する。 */
+function stripWikilinks(text: string): string {
+  return text.replace(/\[\[([^[\]]+)\]\]/g, (_match, inner: string) => {
     const parts = inner.split("|");
     return (parts.length > 1 ? parts[1] : parts[0]).trim();
   });
-  result = result.replace(/(^|[ \t])\^[A-Za-z0-9_-]+(?=[ \t]*$)/gm, "");
-  return result;
+}
+
+/** 行末の `^block-id` を除去する。 */
+function stripBlockRefs(text: string): string {
+  return text.replace(/(^|[ \t])\^[A-Za-z0-9_-]+(?=[ \t]*$)/gm, "");
 }
 
 // `[![^\]\n]+\]` はタグ名を限定しないため、[!note] / [!warning] / [!tip] /
