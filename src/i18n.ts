@@ -138,6 +138,21 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     introLineUnit: "line",
     introLineUnitPlural: "lines",
     noticeOptimizeError: "Something went wrong while optimizing.",
+
+    // 設定タブ
+    settingsAdvancedSection: "Advanced customization",
+    settingRemoveWikilinksName: "Remove [[WikiLinks]]",
+    settingRemoveWikilinksDesc:
+      "When running Optimize, convert [[WikiLinks]] to plain text. Turn off to leave them as-is.",
+    settingRemoveBlockRefsName: "Remove ^block-references",
+    settingRemoveBlockRefsDesc:
+      "When running Optimize, remove trailing ^block-id references. Turn off to leave them as-is.",
+    settingStripAiIntroName: "Strip AI intro phrases",
+    settingStripAiIntroDesc:
+      "When running Optimize, remove lines like \"Sure, here's the explanation...\". Turn off to leave them as-is.",
+    settingReduceBoldName: "Reduce excessive bold",
+    settingReduceBoldDesc:
+      "When running Optimize, unwrap **bold** formatting on lines that overuse it. Turn off to leave it as-is.",
   },
 
   ja: {
@@ -258,6 +273,21 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     introLineUnit: "行",
     introLineUnitPlural: "行",
     noticeOptimizeError: "最適化中にエラーが発生しました。",
+
+    // 設定タブ
+    settingsAdvancedSection: "詳細設定",
+    settingRemoveWikilinksName: "[[wikilink]]を除去",
+    settingRemoveWikilinksDesc:
+      "Optimize実行時に[[wikilink]]を通常のテキストに変換します。オフにすると変換せずそのまま残します。",
+    settingRemoveBlockRefsName: "^ブロック参照を除去",
+    settingRemoveBlockRefsDesc:
+      "Optimize実行時に末尾の^ブロックIDを除去します。オフにすると除去せずそのまま残します。",
+    settingStripAiIntroName: "AI前置き文を除去",
+    settingStripAiIntroDesc:
+      "Optimize実行時に「承知しました、以下に...」のような前置き文を除去します。オフにすると除去せずそのまま残します。",
+    settingReduceBoldName: "過剰な太字を解除",
+    settingReduceBoldDesc:
+      "Optimize実行時に太字が使われすぎている行の強調を解除します。オフにすると解除せずそのまま残します。",
   },
 };
 

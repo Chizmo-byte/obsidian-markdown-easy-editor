@@ -1,7 +1,25 @@
-import { Notice, Plugin, MarkdownView, ItemView, Setting, WorkspaceLeaf, getLanguage } from "obsidian";
+import { App, Notice, Plugin, PluginSettingTab, MarkdownView, ItemView, Setting, WorkspaceLeaf, getLanguage } from "obsidian";
 import { processMarkdownWithStats } from "./markdown-transformer";
 import { resolveLocale, t, tf, type Locale } from "./i18n";
 import { buildCalloutSnippet, calloutAccentColor, calloutStringKey, CALLOUT_BUTTON_STYLE, CALLOUT_TYPES } from "./callouts";
+
+/**
+ * Optimize の各処理を個別に on/off するための永続設定。
+ * デフォルトはすべて true（既存挙動と完全に同じ）。
+ */
+interface MarkdownEasyEditorSettings {
+  optimizeRemoveWikilinks: boolean;
+  optimizeRemoveBlockRefs: boolean;
+  optimizeStripAiIntro: boolean;
+  optimizeReduceBold: boolean;
+}
+
+const DEFAULT_SETTINGS: MarkdownEasyEditorSettings = {
+  optimizeRemoveWikilinks: true,
+  optimizeRemoveBlockRefs: true,
+  optimizeStripAiIntro: true,
+  optimizeReduceBold: true,
+};
 
 /**
  * 記法ボタンの定義。
@@ -159,15 +177,72 @@ class MarkdownToolbarView extends ItemView {
   }
 }
 
+/**
+ * 設定タブ。今のところ通常項目は無く、めったに触らない項目だけを
+ * 「Advanced customization」の折りたたみセクションにまとめている
+ * （デフォルトは閉じた状態）。
+ */
+class MarkdownEasyEditorSettingTab extends PluginSettingTab {
+  plugin: MarkdownEasyEditorPlugin;
+
+  constructor(app: App, plugin: MarkdownEasyEditorPlugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+  }
+
+  display(): void {
+    const { containerEl } = this;
+    containerEl.empty();
+
+    const locale = this.plugin.locale;
+
+    const details = containerEl.createEl("details");
+    details.createEl("summary", {
+      text: t("settingsAdvancedSection", locale),
+      attr: { style: "font-weight: bold; cursor: pointer;" },
+    });
+    const content = details.createDiv({ attr: { style: "padding-top: 10px;" } });
+
+    const toggles: ReadonlyArray<{
+      key: keyof MarkdownEasyEditorSettings;
+      nameKey: string;
+      descKey: string;
+    }> = [
+      { key: "optimizeRemoveWikilinks", nameKey: "settingRemoveWikilinksName", descKey: "settingRemoveWikilinksDesc" },
+      { key: "optimizeRemoveBlockRefs", nameKey: "settingRemoveBlockRefsName", descKey: "settingRemoveBlockRefsDesc" },
+      { key: "optimizeStripAiIntro", nameKey: "settingStripAiIntroName", descKey: "settingStripAiIntroDesc" },
+      { key: "optimizeReduceBold", nameKey: "settingReduceBoldName", descKey: "settingReduceBoldDesc" },
+    ];
+
+    toggles.forEach(({ key, nameKey, descKey }) => {
+      new Setting(content)
+        .setName(t(nameKey, locale))
+        .setDesc(t(descKey, locale))
+        .addToggle((toggle) => {
+          toggle.setValue(this.plugin.settings[key]).onChange(async (value) => {
+            this.plugin.settings[key] = value;
+            await this.plugin.saveSettings();
+          });
+        });
+    });
+  }
+}
+
 export default class MarkdownEasyEditorPlugin extends Plugin {
   private lastMarkdownView: MarkdownView | null = null;
 
   /** Obsidian の表示言語。onload 時に確定させ、UI とすべての通知で共有する。 */
   locale: Locale = "en";
 
+  /** Optimize の各処理の on/off。デフォルトはすべて true（既存挙動と完全に同じ）。 */
+  settings: MarkdownEasyEditorSettings = DEFAULT_SETTINGS;
+
   async onload(): Promise<void> {
     // getLanguage() は Obsidian 公式 API。設定中の言語の ISO コードを返し、既定は "en"。
     this.locale = resolveLocale(getLanguage());
+
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    this.addSettingTab(new MarkdownEasyEditorSettingTab(this.app, this));
 
     this.registerView(
       VIEW_TYPE_TOOLBAR,
@@ -401,6 +476,10 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
     }
   }
 
+  async saveSettings(): Promise<void> {
+    await this.saveData(this.settings);
+  }
+
   optimizeSelection() {
     const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
     if (!markdownView) {
@@ -415,7 +494,12 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
     }
 
     try {
-      const { text, removedIntroCount } = processMarkdownWithStats(selection, "optimize", "obsidian");
+      const { text, removedIntroCount } = processMarkdownWithStats(selection, "optimize", "obsidian", {
+        removeWikilinks: this.settings.optimizeRemoveWikilinks,
+        removeBlockRefs: this.settings.optimizeRemoveBlockRefs,
+        stripAiIntro: this.settings.optimizeStripAiIntro,
+        reduceBold: this.settings.optimizeReduceBold,
+      });
       editor.replaceSelection(text);
 
       // 前置き文を消したときは、黙って消さずに件数を知らせる
