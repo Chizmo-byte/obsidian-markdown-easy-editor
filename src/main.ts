@@ -1,4 +1,4 @@
-import { App, Notice, Plugin, PluginSettingTab, MarkdownView, ItemView, Setting, WorkspaceLeaf, getLanguage } from "obsidian";
+import { App, Notice, Plugin, PluginSettingTab, MarkdownView, ItemView, Setting, WorkspaceLeaf, getLanguage, type SettingDefinitionItem } from "obsidian";
 import { processMarkdownWithStats } from "./markdown-transformer";
 import { resolveLocale, t, tf, type Locale } from "./i18n";
 import { buildCalloutSnippet, calloutAccentColor, calloutStringKey, CALLOUT_BUTTON_STYLE, CALLOUT_TYPES } from "./callouts";
@@ -177,13 +177,33 @@ class MarkdownToolbarView extends ItemView {
   }
 }
 
+/** display() / getSettingDefinitions() の両方で共有する、1トグル分の定義。 */
+interface ToggleDefinition {
+  key: keyof MarkdownEasyEditorSettings;
+  nameKey: string;
+  descKey: string;
+}
+
 /**
  * 設定タブ。今のところ通常項目は無く、めったに触らない項目だけを
  * 「Advanced customization」の折りたたみセクションにまとめている
  * （デフォルトは閉じた状態）。
+ *
+ * display() は Obsidian 1.13 未満向けのフォールバック実装で、
+ * getSettingDefinitions() が非空配列を返すバージョンではそちらが優先され
+ * display() は呼ばれない（Obsidian 公式の仕様）。両方をサポートするため、
+ * トグル4項目の定義は TOGGLE_DEFINITIONS に一本化し、二重管理を避けている。
  */
 class MarkdownEasyEditorSettingTab extends PluginSettingTab {
   plugin: MarkdownEasyEditorPlugin;
+
+  /** Optimize の4トグルの定義（表示名・説明文の i18n キーのみを持つ、ロケール非依存の静的データ）。 */
+  private static readonly TOGGLE_DEFINITIONS: ReadonlyArray<ToggleDefinition> = [
+    { key: "optimizeRemoveWikilinks", nameKey: "settingRemoveWikilinksName", descKey: "settingRemoveWikilinksDesc" },
+    { key: "optimizeRemoveBlockRefs", nameKey: "settingRemoveBlockRefsName", descKey: "settingRemoveBlockRefsDesc" },
+    { key: "optimizeStripAiIntro", nameKey: "settingStripAiIntroName", descKey: "settingStripAiIntroDesc" },
+    { key: "optimizeReduceBold", nameKey: "settingReduceBoldName", descKey: "settingReduceBoldDesc" },
+  ];
 
   constructor(app: App, plugin: MarkdownEasyEditorPlugin) {
     super(app, plugin);
@@ -203,18 +223,7 @@ class MarkdownEasyEditorSettingTab extends PluginSettingTab {
     });
     const content = details.createDiv({ attr: { style: "padding-top: 10px;" } });
 
-    const toggles: ReadonlyArray<{
-      key: keyof MarkdownEasyEditorSettings;
-      nameKey: string;
-      descKey: string;
-    }> = [
-      { key: "optimizeRemoveWikilinks", nameKey: "settingRemoveWikilinksName", descKey: "settingRemoveWikilinksDesc" },
-      { key: "optimizeRemoveBlockRefs", nameKey: "settingRemoveBlockRefsName", descKey: "settingRemoveBlockRefsDesc" },
-      { key: "optimizeStripAiIntro", nameKey: "settingStripAiIntroName", descKey: "settingStripAiIntroDesc" },
-      { key: "optimizeReduceBold", nameKey: "settingReduceBoldName", descKey: "settingReduceBoldDesc" },
-    ];
-
-    toggles.forEach(({ key, nameKey, descKey }) => {
+    MarkdownEasyEditorSettingTab.TOGGLE_DEFINITIONS.forEach(({ key, nameKey, descKey }) => {
       new Setting(content)
         .setName(t(nameKey, locale))
         .setDesc(t(descKey, locale))
@@ -225,6 +234,24 @@ class MarkdownEasyEditorSettingTab extends PluginSettingTab {
           });
         });
     });
+  }
+
+  /**
+   * Obsidian 1.13 以降の設定検索に対応させるための宣言的な定義。
+   * key は this.plugin.settings のプロパティ名と一致させており、
+   * 値の読み書きは PluginSettingTab のデフォルト実装（plugin.settings を
+   * 直接読み書きする）に任せている。
+   */
+  getSettingDefinitions(): SettingDefinitionItem[] {
+    const locale = this.plugin.locale;
+
+    return MarkdownEasyEditorSettingTab.TOGGLE_DEFINITIONS.map(
+      ({ key, nameKey, descKey }): SettingDefinitionItem => ({
+        name: t(nameKey, locale),
+        desc: t(descKey, locale),
+        control: { type: "toggle", key },
+      }),
+    );
   }
 }
 
@@ -241,7 +268,8 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
     // getLanguage() は Obsidian 公式 API。設定中の言語の ISO コードを返し、既定は "en"。
     this.locale = resolveLocale(getLanguage());
 
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const loaded = (await this.loadData()) as Partial<MarkdownEasyEditorSettings> | null;
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded ?? {});
     this.addSettingTab(new MarkdownEasyEditorSettingTab(this.app, this));
 
     this.registerView(
