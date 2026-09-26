@@ -116,6 +116,8 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     tipCalloutAbstract: "For a summary of the key points up front.",
     labelCalloutBug: "Bug",
     tipCalloutBug: "For known defects and reproduction notes.",
+    // 設定で登録したカスタムコールアウト（共通の説明文）
+    tipCalloutCustom: "A custom callout you added in settings.",
 
     // 挿入されるテンプレートの中身
     placeholderCode: "your code here",
@@ -153,6 +155,19 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     settingReduceBoldName: "Reduce excessive bold",
     settingReduceBoldDesc:
       "When running Optimize, unwrap **bold** formatting on lines that overuse it. Turn off to leave it as-is.",
+    settingCustomCalloutsHeading: "Custom callouts",
+    settingCustomCalloutsDesc:
+      "Add your own callout types to the Callouts section of the palette. Applying one inserts > [!type] label.",
+    settingCustomCalloutsEmpty: "No custom callouts yet.",
+    settingCustomCalloutAddName: "Add a custom callout",
+    settingCustomCalloutAddDesc: "Type: letters, numbers and hyphens only. Label: the name shown in the palette.",
+    settingCustomCalloutTypePlaceholder: "type (e.g. my-note)",
+    settingCustomCalloutLabelPlaceholder: "Label (e.g. My note)",
+    settingCustomCalloutAddButton: "Add",
+    settingCustomCalloutDeleteButton: "Delete",
+    noticeCustomCalloutInvalidType: "The type can only contain letters, numbers and hyphens.",
+    noticeCustomCalloutDuplicateBuiltin: "This type is already a built-in callout. Choose a different type.",
+    noticeCustomCalloutDuplicateCustom: "A custom callout with this type already exists.",
   },
 
   ja: {
@@ -252,6 +267,8 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     tipCalloutAbstract: "冒頭に要点をまとめる時に使います。",
     labelCalloutBug: "不具合メモ",
     tipCalloutBug: "既知の不具合や再現手順のメモに使います。",
+    // 設定で登録したカスタムコールアウト（共通の説明文）
+    tipCalloutCustom: "設定で追加したカスタムコールアウトです。",
 
     // 挿入されるテンプレートの中身
     placeholderCode: "ここにコード",
@@ -288,6 +305,19 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     settingReduceBoldName: "過剰な太字を解除",
     settingReduceBoldDesc:
       "Optimize実行時に太字が使われすぎている行の強調を解除します。オフにすると解除せずそのまま残します。",
+    settingCustomCalloutsHeading: "カスタムコールアウト",
+    settingCustomCalloutsDesc:
+      "パレットのコールアウト欄に独自の種類を追加します。適用すると > [!type] ラベル の形で挿入されます。",
+    settingCustomCalloutsEmpty: "カスタムコールアウトはまだありません。",
+    settingCustomCalloutAddName: "カスタムコールアウトを追加",
+    settingCustomCalloutAddDesc: "type：英数字とハイフンのみ。ラベル：パレットに表示する名前。",
+    settingCustomCalloutTypePlaceholder: "type（例：my-note）",
+    settingCustomCalloutLabelPlaceholder: "ラベル（例：マイノート）",
+    settingCustomCalloutAddButton: "追加",
+    settingCustomCalloutDeleteButton: "削除",
+    noticeCustomCalloutInvalidType: "type には英数字とハイフンのみ使えます。",
+    noticeCustomCalloutDuplicateBuiltin: "この type は標準のコールアウトと重複しています。別の type を指定してください。",
+    noticeCustomCalloutDuplicateCustom: "この type のカスタムコールアウトは既に登録されています。",
   },
 };
 

@@ -1,17 +1,27 @@
 import { App, Notice, Plugin, PluginSettingTab, MarkdownView, ItemView, Setting, WorkspaceLeaf, getLanguage, type SettingDefinitionItem } from "obsidian";
 import { processMarkdownWithStats } from "./markdown-transformer";
 import { resolveLocale, t, tf, type Locale } from "./i18n";
-import { buildCalloutSnippet, calloutAccentColor, calloutStringKey, CALLOUT_BUTTON_STYLE, CALLOUT_TYPES } from "./callouts";
+import { buildCalloutSnippet, CALLOUT_BUTTON_STYLE } from "./callouts";
+import {
+  addCustomCallout,
+  buildCalloutPaletteEntries,
+  normalizeCustomCallouts,
+  removeCustomCallout,
+  CUSTOM_CALLOUT_ERROR_KEYS,
+  type CustomCallout,
+} from "./custom-callouts";
 
 /**
- * Optimize の各処理を個別に on/off するための永続設定。
- * デフォルトはすべて true（既存挙動と完全に同じ）。
+ * プラグインの永続設定。
+ * Optimize の各処理の on/off はデフォルトがすべて true（既存挙動と完全に同じ）。
  */
 interface MarkdownEasyEditorSettings {
   optimizeRemoveWikilinks: boolean;
   optimizeRemoveBlockRefs: boolean;
   optimizeStripAiIntro: boolean;
   optimizeReduceBold: boolean;
+  /** ユーザーが登録したコールアウト。パレットのコールアウト欄の末尾に並ぶ。 */
+  customCallouts: Array<{ type: string; label: string }>;
 }
 
 const DEFAULT_SETTINGS: MarkdownEasyEditorSettings = {
@@ -19,7 +29,13 @@ const DEFAULT_SETTINGS: MarkdownEasyEditorSettings = {
   optimizeRemoveBlockRefs: true,
   optimizeStripAiIntro: true,
   optimizeReduceBold: true,
+  customCallouts: [],
 };
+
+/** トグルで表示する boolean 型の設定項目だけを取り出したキー。 */
+type ToggleSettingKey = {
+  [K in keyof MarkdownEasyEditorSettings]: MarkdownEasyEditorSettings[K] extends boolean ? K : never;
+}[keyof MarkdownEasyEditorSettings];
 
 /**
  * 記法ボタンの定義。
@@ -61,21 +77,19 @@ function buildBasicButtons(locale: Locale): ReadonlyArray<ToolbarAction> {
   ];
 }
 
-function buildCalloutButtons(locale: Locale, isDarkTheme: boolean): ReadonlyArray<ToolbarAction> {
-  const titlePlaceholder = t("calloutTitlePlaceholder", locale);
+/** 既存12種類の後ろに、登録済みのカスタムコールアウトを同じボタン形式で並べる。 */
+function buildCalloutButtons(
+  locale: Locale,
+  isDarkTheme: boolean,
+  customCallouts: ReadonlyArray<CustomCallout>,
+): ReadonlyArray<ToolbarAction> {
   const bodyPlaceholder = t("calloutBodyPlaceholder", locale);
 
-  return CALLOUT_TYPES.map((callout) => ({
+  return buildCalloutPaletteEntries(locale, isDarkTheme, customCallouts).map((entry) => ({
     kind: "callout" as const,
-    id: `callout-${callout.type}`,
-    calloutType: callout.type,
-    accentColor: calloutAccentColor(callout, isDarkTheme),
-    titlePlaceholder,
+    ...entry,
     bodyPlaceholder,
     symbol: "[!]",
-    label: t(calloutStringKey("label", callout.type), locale),
-    shortcut: `> [!${callout.type}]`,
-    tip: t(calloutStringKey("tip", callout.type), locale),
   }));
 }
 
@@ -173,13 +187,17 @@ class MarkdownToolbarView extends ItemView {
     renderSection(t("sectionMore", locale), buildMoreButtons(locale), false);
     // テーマ判定は描画時に一度だけ。CSS 変数に頼らず配色を確定させる。
     const isDarkTheme = document.body.classList.contains("theme-dark");
-    renderSection(t("sectionCallouts", locale), buildCalloutButtons(locale, isDarkTheme), false);
+    renderSection(
+      t("sectionCallouts", locale),
+      buildCalloutButtons(locale, isDarkTheme, this.plugin.settings.customCallouts),
+      false,
+    );
   }
 }
 
 /** display() / getSettingDefinitions() の両方で共有する、1トグル分の定義。 */
 interface ToggleDefinition {
-  key: keyof MarkdownEasyEditorSettings;
+  key: ToggleSettingKey;
   nameKey: string;
   descKey: string;
 }
@@ -234,6 +252,90 @@ class MarkdownEasyEditorSettingTab extends PluginSettingTab {
           });
         });
     });
+
+    this.renderCustomCallouts(content);
+  }
+
+  /** display() 用：カスタムコールアウトの一覧と追加欄を描画する。 */
+  private renderCustomCallouts(parent: HTMLElement): void {
+    const locale = this.plugin.locale;
+
+    new Setting(parent)
+      .setName(t("settingCustomCalloutsHeading", locale))
+      .setDesc(t("settingCustomCalloutsDesc", locale))
+      .setHeading();
+
+    const callouts = this.plugin.settings.customCallouts;
+    if (callouts.length === 0) {
+      new Setting(parent).setDesc(t("settingCustomCalloutsEmpty", locale));
+    }
+    callouts.forEach((callout, index) => {
+      new Setting(parent)
+        .setName(callout.label)
+        .setDesc(`> [!${callout.type}]`)
+        .addButton((button) => {
+          button
+            .setButtonText(t("settingCustomCalloutDeleteButton", locale))
+            .setWarning()
+            .onClick(async () => {
+              await this.deleteCustomCallout(index);
+              this.display();
+            });
+        });
+    });
+
+    this.renderAddCustomCalloutRow(new Setting(parent), () => this.display());
+  }
+
+  /**
+   * type・label の入力欄と追加ボタンを 1 行に並べる。display() と
+   * getSettingDefinitions() の render の両方から使う。
+   */
+  private renderAddCustomCalloutRow(setting: Setting, onAdded: () => void): void {
+    const locale = this.plugin.locale;
+    let typeValue = "";
+    let labelValue = "";
+
+    setting
+      .setName(t("settingCustomCalloutAddName", locale))
+      .setDesc(t("settingCustomCalloutAddDesc", locale))
+      .addText((text) => {
+        text.setPlaceholder(t("settingCustomCalloutTypePlaceholder", locale)).onChange((value) => {
+          typeValue = value;
+        });
+      })
+      .addText((text) => {
+        text.setPlaceholder(t("settingCustomCalloutLabelPlaceholder", locale)).onChange((value) => {
+          labelValue = value;
+        });
+      })
+      .addButton((button) => {
+        button
+          .setButtonText(t("settingCustomCalloutAddButton", locale))
+          .setCta()
+          .onClick(async () => {
+            if (await this.addCustomCallout(typeValue, labelValue)) onAdded();
+          });
+      });
+  }
+
+  /** 検証して追加する。拒否したときは理由を Notice で伝えて false を返す。 */
+  private async addCustomCallout(type: string, label: string): Promise<boolean> {
+    const result = addCustomCallout(this.plugin.settings.customCallouts, { type, label });
+    if (!result.ok) {
+      new Notice(t(CUSTOM_CALLOUT_ERROR_KEYS[result.error], this.plugin.locale));
+      return false;
+    }
+    this.plugin.settings.customCallouts = result.callouts;
+    await this.plugin.saveSettings();
+    this.plugin.refreshToolbarViews();
+    return true;
+  }
+
+  private async deleteCustomCallout(index: number): Promise<void> {
+    this.plugin.settings.customCallouts = removeCustomCallout(this.plugin.settings.customCallouts, index);
+    await this.plugin.saveSettings();
+    this.plugin.refreshToolbarViews();
   }
 
   /**
@@ -245,13 +347,41 @@ class MarkdownEasyEditorSettingTab extends PluginSettingTab {
   getSettingDefinitions(): SettingDefinitionItem[] {
     const locale = this.plugin.locale;
 
-    return MarkdownEasyEditorSettingTab.TOGGLE_DEFINITIONS.map(
+    const toggles = MarkdownEasyEditorSettingTab.TOGGLE_DEFINITIONS.map(
       ({ key, nameKey, descKey }): SettingDefinitionItem => ({
         name: t(nameKey, locale),
         desc: t(descKey, locale),
         control: { type: "toggle", key },
       }),
     );
+
+    // カスタムコールアウトは件数が変わる一覧なので list で持たせ、削除は onDelete に任せる。
+    // 追加欄は list の項目に混ぜると削除ボタンが付いてしまうため、別の group に置く。
+    const customCallouts: SettingDefinitionItem = {
+      type: "list",
+      heading: t("settingCustomCalloutsHeading", locale),
+      emptyState: t("settingCustomCalloutsEmpty", locale),
+      items: this.plugin.settings.customCallouts.map((callout) => ({
+        name: callout.label,
+        desc: `> [!${callout.type}]`,
+      })),
+      onDelete: (index) => {
+        void this.deleteCustomCallout(index).then(() => this.update());
+      },
+    };
+
+    const addCustomCallout: SettingDefinitionItem = {
+      type: "group",
+      items: [
+        {
+          name: t("settingCustomCalloutAddName", locale),
+          desc: t("settingCustomCalloutAddDesc", locale),
+          render: (setting) => this.renderAddCustomCalloutRow(setting, () => this.update()),
+        },
+      ],
+    };
+
+    return [...toggles, customCallouts, addCustomCallout];
   }
 }
 
@@ -270,6 +400,8 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
 
     const loaded = (await this.loadData()) as Partial<MarkdownEasyEditorSettings> | null;
     this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded ?? {});
+    // 既定値の配列を共有しないよう、また壊れた保存データを持ち込まないよう作り直す
+    this.settings.customCallouts = normalizeCustomCallouts(loaded?.customCallouts);
     this.addSettingTab(new MarkdownEasyEditorSettingTab(this.app, this));
 
     this.registerView(
@@ -506,6 +638,15 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
 
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings);
+  }
+
+  /** 開いているパレットを描き直し、カスタムコールアウトの追加・削除を即座に反映する。 */
+  refreshToolbarViews(): void {
+    for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_TOOLBAR)) {
+      if (leaf.view instanceof MarkdownToolbarView) {
+        void leaf.view.onOpen();
+      }
+    }
   }
 
   optimizeSelection() {
