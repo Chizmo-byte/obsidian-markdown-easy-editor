@@ -24,6 +24,8 @@ Insert Obsidian's colorful callout boxes (Note, Tip, Important, Warning, Danger,
 
 ![Callouts panel](screenshots/callouts-panel.png)
 
+**Need a callout type that isn't listed?** Open **Settings → Markdown Easy Editor → Advanced customization** to register your own custom callouts (a type name and a label). They'll appear in this panel right after the 12 built-in ones and insert the same `> [!type] label` syntax.
+
 ### ✨ Optimize Selected Markdown
 
 Select any text and run **Optimize Selected Markdown** from the command palette. This cleans up common issues in Markdown that wasn't originally written for Obsidian — for example, text copied from an AI assistant's response:
@@ -42,6 +44,8 @@ Select any text and run **Optimize Selected Markdown** from the command palette.
 - Optionally converts tables to bullet lists for note-taking targets
 
 This is aimed at anyone who regularly pastes AI-generated content, web clippings, or Markdown from other tools into Obsidian and wants it to look native.
+
+> Wikilink/block-ref conversion, AI intro-phrase removal, and excessive-bold reduction can each be turned off individually. Open **Settings → Markdown Easy Editor → Advanced customization** to toggle them (all are on by default).
 
 **Before:**
 

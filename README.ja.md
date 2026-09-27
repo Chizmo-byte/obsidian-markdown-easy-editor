@@ -24,6 +24,8 @@ Obsidianのカラフルなコールアウトボックス（ノート・ヒント
 
 ![コールアウトパネル](screenshots/callouts-panel.png)
 
+**一覧に無い種類のコールアウトを使いたい場合は？** **設定 → Markdown Easy Editor → Advanced customization（詳細設定）** から、独自のカスタムコールアウト（種別名とラベル）を登録できます。登録したコールアウトは既存12種類の直後にパネル内へ表示され、同じ`> [!種別] ラベル`の記法で挿入されます。
+
 ### ✨ 選択範囲のMarkdownを最適化
 
 テキストを選択した状態でコマンドパレットから「Optimize Selected Markdown（選択範囲のMarkdownを最適化）」を実行すると、Obsidian向けに書かれていないMarkdown（例：AIアシスタントの回答からコピーしたテキストなど）によくある問題を整えます。
@@ -42,6 +44,8 @@ Obsidianのカラフルなコールアウトボックス（ノート・ヒント
 - 用途に応じて表を箇条書きリストに変換（オプション）
 
 AIが生成した文章・Web記事のコピー・他ツールからのMarkdownを日常的にObsidianへ貼り付けている方に向けたプラグインです。
+
+> wikilink・ブロック参照の変換、AI前置き文の除去、過剰な太字の解除は、それぞれ個別にOFFにできます。**設定 → Markdown Easy Editor → Advanced customization（詳細設定）** から切り替えられます（初期値はすべてON）。
 
 **変換前：**
 
