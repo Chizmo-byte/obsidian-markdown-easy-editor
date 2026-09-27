@@ -276,7 +276,7 @@ class MarkdownEasyEditorSettingTab extends PluginSettingTab {
         .addButton((button) => {
           button
             .setButtonText(t("settingCustomCalloutDeleteButton", locale))
-            .setWarning()
+            .setDestructive()
             .onClick(async () => {
               await this.deleteCustomCallout(index);
               this.display();
@@ -366,7 +366,7 @@ class MarkdownEasyEditorSettingTab extends PluginSettingTab {
         desc: `> [!${callout.type}]`,
       })),
       onDelete: (index) => {
-        void this.deleteCustomCallout(index).then(() => this.update());
+        void this.deleteCustomCallout(index).then(() => this.refreshDeclarativeUI());
       },
     };
 
@@ -376,12 +376,27 @@ class MarkdownEasyEditorSettingTab extends PluginSettingTab {
         {
           name: t("settingCustomCalloutAddName", locale),
           desc: t("settingCustomCalloutAddDesc", locale),
-          render: (setting) => this.renderAddCustomCalloutRow(setting, () => this.update()),
+          render: (setting) => this.renderAddCustomCalloutRow(setting, () => this.refreshDeclarativeUI()),
         },
       ],
     };
 
     return [...toggles, customCallouts, addCustomCallout];
+  }
+
+  /**
+   * getSettingDefinitions() 経由の宣言的UI（Obsidian 1.13+専用）を再描画する。
+   * `update()` は 1.13.0 以降にのみ存在するAPIなので、minAppVersion（1.8.7）を
+   * 上げずに使うため存在チェックを挟む。この経路自体は getSettingDefinitions()
+   * を実装しているタブでのみ呼ばれる（＝実行時点で1.13+が確定している）が、
+   * 静的解析ではそれが分からないため、明示的なガードとして残す。
+   */
+  private refreshDeclarativeUI(): void {
+    if (typeof this.update === "function") {
+      this.update();
+    } else {
+      this.display();
+    }
   }
 }
 
