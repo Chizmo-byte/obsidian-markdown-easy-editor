@@ -1,10 +1,10 @@
 {
-  "id": "markdown-easy-editor",
-  "name": "Markdown Easy Editor",
-  "version": "0.4.1",
-  "minAppVersion": "1.8.7",
-  "description": "Adds a Markdown formatting toolbar and an Optimize command for cleaning up messy Markdown.",
-  "author": "Chizmo",
-  "authorUrl": "https://github.com/Chizmo-byte",
-  "isDesktopOnly": false
+	"id": "markdown-easy-editor",
+	"name": "Markdown Easy Editor",
+	"version": "0.5.0",
+	"minAppVersion": "1.8.7",
+	"description": "Adds a Markdown formatting toolbar and an Optimize command for cleaning up messy Markdown.",
+	"author": "Chizmo",
+	"authorUrl": "https://github.com/Chizmo-byte",
+	"isDesktopOnly": false
 }
