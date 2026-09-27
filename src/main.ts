@@ -276,7 +276,7 @@ class MarkdownEasyEditorSettingTab extends PluginSettingTab {
         .addButton((button) => {
           button
             .setButtonText(t("settingCustomCalloutDeleteButton", locale))
-            .setDestructive()
+            .setWarning()
             .onClick(async () => {
               await this.deleteCustomCallout(index);
               this.display();
@@ -343,60 +343,25 @@ class MarkdownEasyEditorSettingTab extends PluginSettingTab {
    * key は this.plugin.settings のプロパティ名と一致させており、
    * 値の読み書きは PluginSettingTab のデフォルト実装（plugin.settings を
    * 直接読み書きする）に任せている。
+   *
+   * カスタムコールアウトの一覧・追加/削除は、ここには含めない。
+   * `list`/`group`/`onDelete` や、変更後の再描画に必要な `update()` は
+   * いずれも Obsidian 1.13.0 以降専用の API で、minAppVersion（1.8.7）より
+   * 新しいため、実行時ガードを入れても静的解析（no-unsupported-api）が
+   * 呼び出しの存在自体を検出してエラーにしてしまう。カスタムコールアウトは
+   * display() 側の UI で従来どおり完全に操作できるので、ここでは検索対象を
+   * 4つのトグルのみに留める。
    */
   getSettingDefinitions(): SettingDefinitionItem[] {
     const locale = this.plugin.locale;
 
-    const toggles = MarkdownEasyEditorSettingTab.TOGGLE_DEFINITIONS.map(
+    return MarkdownEasyEditorSettingTab.TOGGLE_DEFINITIONS.map(
       ({ key, nameKey, descKey }): SettingDefinitionItem => ({
         name: t(nameKey, locale),
         desc: t(descKey, locale),
         control: { type: "toggle", key },
       }),
     );
-
-    // カスタムコールアウトは件数が変わる一覧なので list で持たせ、削除は onDelete に任せる。
-    // 追加欄は list の項目に混ぜると削除ボタンが付いてしまうため、別の group に置く。
-    const customCallouts: SettingDefinitionItem = {
-      type: "list",
-      heading: t("settingCustomCalloutsHeading", locale),
-      emptyState: t("settingCustomCalloutsEmpty", locale),
-      items: this.plugin.settings.customCallouts.map((callout) => ({
-        name: callout.label,
-        desc: `> [!${callout.type}]`,
-      })),
-      onDelete: (index) => {
-        void this.deleteCustomCallout(index).then(() => this.refreshDeclarativeUI());
-      },
-    };
-
-    const addCustomCallout: SettingDefinitionItem = {
-      type: "group",
-      items: [
-        {
-          name: t("settingCustomCalloutAddName", locale),
-          desc: t("settingCustomCalloutAddDesc", locale),
-          render: (setting) => this.renderAddCustomCalloutRow(setting, () => this.refreshDeclarativeUI()),
-        },
-      ],
-    };
-
-    return [...toggles, customCallouts, addCustomCallout];
-  }
-
-  /**
-   * getSettingDefinitions() 経由の宣言的UI（Obsidian 1.13+専用）を再描画する。
-   * `update()` は 1.13.0 以降にのみ存在するAPIなので、minAppVersion（1.8.7）を
-   * 上げずに使うため存在チェックを挟む。この経路自体は getSettingDefinitions()
-   * を実装しているタブでのみ呼ばれる（＝実行時点で1.13+が確定している）が、
-   * 静的解析ではそれが分からないため、明示的なガードとして残す。
-   */
-  private refreshDeclarativeUI(): void {
-    if (typeof this.update === "function") {
-      this.update();
-    } else {
-      this.display();
-    }
   }
 }
 
