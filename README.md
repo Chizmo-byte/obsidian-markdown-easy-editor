@@ -16,6 +16,8 @@ Click the pencil icon in the ribbon to open a side panel with quick-access butto
 
 Each button applies formatting to your current selection (or inserts a template at the cursor) in the active note — no need to remember syntax or type symbols manually.
 
+> Don't use every menu? Open **Settings → Markdown Easy Editor → Advanced customization** to hide whole menus (Headings, Basic, More, Callouts) or individual heading levels (H1–H6). Everything is shown by default, and hiding something never deletes it — you can turn it back on any time.
+
 ![Toolbar panel](screenshots/toolbar-panel.png)
 
 ### 🎨 Callouts
