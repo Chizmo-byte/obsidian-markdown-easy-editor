@@ -10,6 +10,7 @@ import {
   CUSTOM_CALLOUT_ERROR_KEYS,
   type CustomCallout,
 } from "./custom-callouts";
+import { DEFAULT_PALETTE_OPEN_STATE, normalizePaletteOpenState, type PaletteOpenState } from "./palette-open-state";
 import {
   DEFAULT_TOOLBAR_VISIBILITY,
   HEADING_LEVELS,
@@ -20,6 +21,7 @@ import {
   toolbarVisibilityStringKeys,
   visibleHeadingLevels,
   type HeadingLevel,
+  type SectionId,
   type ToolbarVisibilitySettings,
 } from "./toolbar-visibility";
 
@@ -35,6 +37,8 @@ interface MarkdownEasyEditorSettings extends ToolbarVisibilitySettings {
   optimizeReduceBold: boolean;
   /** ユーザーが登録したコールアウト。パレットのコールアウト欄の末尾に並ぶ。 */
   customCallouts: Array<{ type: string; label: string }>;
+  /** パレットの大メニューごとの開閉状態（次に開いたときも維持する）。 */
+  paletteOpenSections: PaletteOpenState;
 }
 
 const DEFAULT_SETTINGS: MarkdownEasyEditorSettings = {
@@ -44,6 +48,7 @@ const DEFAULT_SETTINGS: MarkdownEasyEditorSettings = {
   optimizeStripAiIntro: true,
   optimizeReduceBold: true,
   customCallouts: [],
+  paletteOpenSections: { ...DEFAULT_PALETTE_OPEN_STATE },
 };
 
 /** トグルで表示する boolean 型の設定項目だけを取り出したキー。 */
@@ -145,11 +150,17 @@ class MarkdownToolbarView extends ItemView {
     container.empty();
     container.createEl("h3", { text: t("paletteTitle", locale), attr: { style: "margin-bottom: 10px; padding: 0 10px;" } });
 
-    const renderSection = (title: string, buttons: ReadonlyArray<ToolbarAction>, isOpen: boolean) => {
+    const renderSection = (id: SectionId, title: string, buttons: ReadonlyArray<ToolbarAction>) => {
       const details = container.createEl("details", { 
         attr: { style: "margin-bottom: 10px; border: 1px solid var(--background-modifier-border); border-radius: 4px; padding: 5px;" } 
       });
-      if (isOpen) details.setAttribute("open", "");
+      if (this.plugin.settings.paletteOpenSections[id]) details.setAttribute("open", "");
+      // 開閉のたびに保存し、次にパレットを開いたときも同じ状態にする
+      details.addEventListener("toggle", () => {
+        if (this.plugin.settings.paletteOpenSections[id] === details.open) return;
+        this.plugin.settings.paletteOpenSections[id] = details.open;
+        void this.plugin.saveSettings();
+      });
 
       details.createEl("summary", { 
         text: title, 
@@ -212,22 +223,22 @@ class MarkdownToolbarView extends ItemView {
       switch (id) {
         case "headings":
           renderSection(
+            id,
             t("sectionHeadings", locale),
             buildHeadingButtons(locale, visibleHeadingLevels(this.plugin.settings)),
-            true,
           );
           break;
         case "basic":
-          renderSection(t("sectionBasic", locale), buildBasicButtons(locale), true);
+          renderSection(id, t("sectionBasic", locale), buildBasicButtons(locale));
           break;
         case "more":
-          renderSection(t("sectionMore", locale), buildMoreButtons(locale), false);
+          renderSection(id, t("sectionMore", locale), buildMoreButtons(locale));
           break;
         case "callouts":
           renderSection(
+            id,
             t("sectionCallouts", locale),
             buildCalloutButtons(locale, isDarkTheme, this.plugin.settings.customCallouts),
-            false,
           );
           break;
       }
@@ -523,6 +534,7 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
     this.settings.customCallouts = normalizeCustomCallouts(loaded?.customCallouts);
     // 旧バージョンの保存データにはパレット表示のキーが無い。boolean 以外の壊れた値も含め、既定（表示）に戻す
     Object.assign(this.settings, normalizeToolbarVisibility(loaded));
+    this.settings.paletteOpenSections = normalizePaletteOpenState(loaded?.paletteOpenSections);
     this.addSettingTab(new MarkdownEasyEditorSettingTab(this.app, this));
 
     this.registerView(
