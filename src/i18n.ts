@@ -156,6 +156,8 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     settingReduceBoldDesc:
       "When running Optimize, unwrap **bold** formatting on lines that overuse it. Turn off to leave it as-is.",
     settingOptimizeHeading: "Optimize",
+    settingOptimizeDesc: "Choose which cleanups the Optimize command applies.",
+    settingHeadingLevelsHeading: "Heading levels",
     settingPaletteDisplayHeading: "Palette display",
     settingPaletteDisplayDesc:
       "Choose which menus and heading levels appear in the palette. Hidden items are not deleted, so you can turn them back on any time.",
@@ -333,6 +335,8 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     settingReduceBoldDesc:
       "Optimize実行時に太字が使われすぎている行の強調を解除します。オフにすると解除せずそのまま残します。",
     settingOptimizeHeading: "Optimize（最適化）",
+    settingOptimizeDesc: "Optimizeコマンドで行う整形を選びます。",
+    settingHeadingLevelsHeading: "見出しレベル",
     settingPaletteDisplayHeading: "パレットの表示",
     settingPaletteDisplayDesc:
       "パレットに表示するメニューと見出しレベルを選びます。非表示にしても設定は消えないので、いつでも戻せます。",

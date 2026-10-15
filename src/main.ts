@@ -1,4 +1,4 @@
-import { App, Notice, Plugin, PluginSettingTab, MarkdownView, ItemView, Setting, WorkspaceLeaf, getLanguage, type SettingDefinitionItem } from "obsidian";
+import { App, Notice, Plugin, PluginSettingTab, MarkdownView, ItemView, Setting, WorkspaceLeaf, getLanguage, type SettingDefinition, type SettingDefinitionItem } from "obsidian";
 import { processMarkdownWithStats } from "./markdown-transformer";
 import { resolveLocale, t, tf, type Locale } from "./i18n";
 import { buildCalloutSnippet, CALLOUT_BUTTON_STYLE } from "./callouts";
@@ -12,6 +12,8 @@ import {
 } from "./custom-callouts";
 import {
   DEFAULT_TOOLBAR_VISIBILITY,
+  HEADING_LEVELS,
+  HEADING_VISIBILITY_KEYS,
   TOOLBAR_VISIBILITY_KEYS_IN_ORDER,
   normalizeToolbarVisibility,
   resolveVisibleSections,
@@ -254,6 +256,8 @@ const PALETTE_TOGGLE_DEFINITIONS: ReadonlyArray<ToggleDefinition> = TOOLBAR_VISI
   ...toolbarVisibilityStringKeys(key),
 }));
 
+const HEADING_LEVEL_KEYS: ReadonlySet<string> = new Set<string>(HEADING_LEVELS.map((level) => HEADING_VISIBILITY_KEYS[level]));
+
 /**
  * 設定タブ。今のところ通常項目は無く、めったに触らない項目だけを
  * 「Advanced customization」の折りたたみセクションにまとめている
@@ -291,16 +295,28 @@ class MarkdownEasyEditorSettingTab extends PluginSettingTab {
     });
     const content = details.createDiv({ attr: { style: "padding-top: 10px;" } });
 
-    new Setting(content).setName(t("settingOptimizeHeading", locale)).setHeading();
-    this.renderToggles(content, OPTIMIZE_TOGGLE_DEFINITIONS);
+    // 項目が増えても縦に伸びないよう、グループごとに折りたたむ（どれも初期状態は閉じる）
+    this.renderToggles(
+      this.createCollapsible(content, t("settingOptimizeHeading", locale), t("settingOptimizeDesc", locale)),
+      OPTIMIZE_TOGGLE_DEFINITIONS,
+    );
+    this.renderToggles(
+      this.createCollapsible(content, t("settingPaletteDisplayHeading", locale), t("settingPaletteDisplayDesc", locale)),
+      PALETTE_TOGGLE_DEFINITIONS,
+    );
+    this.mountCustomCallouts(this.createCollapsible(content, t("settingCustomCalloutsHeading", locale)));
+  }
 
-    new Setting(content)
-      .setName(t("settingPaletteDisplayHeading", locale))
-      .setDesc(t("settingPaletteDisplayDesc", locale))
-      .setHeading();
-    this.renderToggles(content, PALETTE_TOGGLE_DEFINITIONS);
-
-    this.renderCustomCallouts(content);
+  /** display() 用：見出しをクリックで開閉できるグループを作り、中身の入れ物を返す。 */
+  private createCollapsible(parent: HTMLElement, title: string, desc?: string): HTMLElement {
+    const details = parent.createEl("details", { attr: { style: "margin-top: 8px;" } });
+    details.createEl("summary", {
+      text: title,
+      attr: { style: "font-weight: bold; cursor: pointer; padding: 6px 0;" },
+    });
+    const body = details.createDiv();
+    if (desc) new Setting(body).setDesc(desc);
+    return body;
   }
 
   /** display() 用：トグルを1行ずつ描画する。パレットに関わるトグルは変更を即座にパレットへ反映する。 */
@@ -343,21 +359,28 @@ class MarkdownEasyEditorSettingTab extends PluginSettingTab {
     await this.applyToggle(definition.key, value);
   }
 
-  /** display() 用：カスタムコールアウトの一覧と追加欄を描画する。 */
-  private renderCustomCallouts(parent: HTMLElement): void {
+  /**
+   * カスタムコールアウトの説明・一覧・追加欄を container の中に描画する。
+   * 追加・削除のあとは、この container の中身だけを自分で描き直す。
+   * 設定タブ全体の再描画（display() / update()）に頼らないので、
+   * display() 経由でも getSettingDefinitions() の render 経由でも同じように使え、
+   * 描き直しでほかのグループの開閉状態が崩れることもない。
+   */
+  private mountCustomCallouts(container: HTMLElement): void {
     const locale = this.plugin.locale;
+    const redraw = () => {
+      container.empty();
+      this.mountCustomCallouts(container);
+    };
 
-    new Setting(parent)
-      .setName(t("settingCustomCalloutsHeading", locale))
-      .setDesc(t("settingCustomCalloutsDesc", locale))
-      .setHeading();
+    new Setting(container).setDesc(t("settingCustomCalloutsDesc", locale));
 
     const callouts = this.plugin.settings.customCallouts;
     if (callouts.length === 0) {
-      new Setting(parent).setDesc(t("settingCustomCalloutsEmpty", locale));
+      new Setting(container).setDesc(t("settingCustomCalloutsEmpty", locale));
     }
     callouts.forEach((callout, index) => {
-      new Setting(parent)
+      new Setting(container)
         .setName(callout.label)
         .setDesc(`> [!${callout.type}]`)
         .addButton((button) => {
@@ -366,18 +389,15 @@ class MarkdownEasyEditorSettingTab extends PluginSettingTab {
             .setWarning()
             .onClick(async () => {
               await this.deleteCustomCallout(index);
-              this.display();
+              redraw();
             });
         });
     });
 
-    this.renderAddCustomCalloutRow(new Setting(parent), () => this.display());
+    this.renderAddCustomCalloutRow(new Setting(container), redraw);
   }
 
-  /**
-   * type・label の入力欄と追加ボタンを 1 行に並べる。display() と
-   * getSettingDefinitions() の render の両方から使う。
-   */
+  /** type・label の入力欄と追加ボタンを 1 行に並べる。 */
   private renderAddCustomCalloutRow(setting: Setting, onAdded: () => void): void {
     const locale = this.plugin.locale;
     let typeValue = "";
@@ -426,31 +446,63 @@ class MarkdownEasyEditorSettingTab extends PluginSettingTab {
   }
 
   /**
-   * Obsidian 1.13 以降の設定検索に対応させるための宣言的な定義。
-   * key は this.plugin.settings のプロパティ名と一致させており、
-   * 値の読み書きは PluginSettingTab のデフォルト実装（plugin.settings を
-   * 直接読み書きする）に任せている。
+   * Obsidian 1.13 以降向けの宣言的な定義。項目が増えても縦に伸びないよう、
+   * 「Optimize」「パレットの表示」「カスタムコールアウト」をそれぞれ
+   * 1 つのサブページにまとめている（ページ形式なので設定検索にも対応）。
+   * key は this.plugin.settings のプロパティ名と一致させている。
    *
-   * カスタムコールアウトの一覧・追加/削除は、ここには含めない。
-   * `list`/`group`/`onDelete` や、変更後の再描画に必要な `update()` は
-   * いずれも Obsidian 1.13.0 以降専用の API で、minAppVersion（1.8.7）より
-   * 新しいため、実行時ガードを入れても静的解析（no-unsupported-api）が
-   * 呼び出しの存在自体を検出してエラーにしてしまう。カスタムコールアウトは
-   * display() 側の UI で従来どおり完全に操作できるので、ここでは検索対象を
-   * 4つのトグルのみに留める。
+   * minAppVersion（1.8.7）より新しい API（update()・setDestructive() 等）は
+   * 静的解析（no-unsupported-api）に弾かれるため使わない。カスタムコールアウトの
+   * 追加・削除は render 内で自分の領域だけを描き直す（mountCustomCallouts）。
    */
   getSettingDefinitions(): SettingDefinitionItem[] {
     const locale = this.plugin.locale;
+    const toToggle = ({ key, nameKey, descKey }: ToggleDefinition): SettingDefinition => ({
+      name: t(nameKey, locale),
+      desc: t(descKey, locale),
+      control: { type: "toggle", key },
+    });
 
-    return MarkdownEasyEditorSettingTab.TOGGLE_DEFINITIONS.map(
-      ({ key, nameKey, descKey }): SettingDefinitionItem => ({
-        name: t(nameKey, locale),
-        desc: t(descKey, locale),
-        control: { type: "toggle", key },
-      }),
-    );
+    return [
+      {
+        type: "page",
+        name: t("settingOptimizeHeading", locale),
+        desc: t("settingOptimizeDesc", locale),
+        items: OPTIMIZE_TOGGLE_DEFINITIONS.map(toToggle),
+      },
+      {
+        type: "page",
+        name: t("settingPaletteDisplayHeading", locale),
+        desc: t("settingPaletteDisplayDesc", locale),
+        items: [
+          ...PALETTE_TOGGLE_DEFINITIONS.filter((d) => !HEADING_LEVEL_KEYS.has(d.key)).map(toToggle),
+          {
+            type: "group",
+            heading: t("settingHeadingLevelsHeading", locale),
+            items: PALETTE_TOGGLE_DEFINITIONS.filter((d) => HEADING_LEVEL_KEYS.has(d.key)).map(toToggle),
+          },
+        ],
+      },
+      {
+        type: "page",
+        name: t("settingCustomCalloutsHeading", locale),
+        desc: t("settingCustomCalloutsDesc", locale),
+        items: [
+          {
+            name: t("settingCustomCalloutsHeading", locale),
+            render: (setting) => {
+              const el = setting.settingEl;
+              el.empty();
+              el.setCssProps({ display: "block", border: "none" });
+              this.mountCustomCallouts(el.createDiv());
+            },
+          },
+        ],
+      },
+    ];
   }
 }
+
 
 export default class MarkdownEasyEditorPlugin extends Plugin {
   private lastMarkdownView: MarkdownView | null = null;
