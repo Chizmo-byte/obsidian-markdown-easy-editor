@@ -99,6 +99,19 @@ This affects how Obsidian displays your notes generally, not just when using thi
 2. Copy them into `<VaultFolder>/.obsidian/plugins/markdown-easy-editor/`
 3. Reload Obsidian and enable the plugin in **Settings → Community plugins**
 
+## Changelog
+
+Major updates only. Full details are on the [Releases](https://github.com/Chizmo-byte/obsidian-markdown-easy-editor/releases) page.
+
+| Version | Highlights |
+|---|---|
+| 0.6.0 | Show/hide whole palette menus and individual heading levels (H1–H6); the palette remembers which menus are open; settings reorganized into Optimize / Palette display / Custom callouts; fixed custom callouts not being editable on Obsidian 1.13+ |
+| 0.5.0 | Custom callouts: register your own callout types and use them from the palette (0.5.1–0.5.2: Community review compatibility fixes) |
+| 0.4.0 | Individual on/off toggles for Optimize's transformations (wikilinks, block references, AI intro phrases, excessive bold) |
+| 0.3.0 | Callouts section with 12 callout types and color accents |
+| 0.2.0 | English / Japanese UI that follows Obsidian's display language; English AI intro-phrase detection in Optimize (0.2.2) |
+| 0.1.0 | Initial release: formatting toolbar and "Optimize Selected Markdown" command |
+
 ## License
 
 MIT
