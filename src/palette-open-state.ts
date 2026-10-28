@@ -3,7 +3,7 @@
  *
  * obsidian パッケージに依存させないこと（Node のテストから直接読み込むため、
  * import には拡張子 .ts を付けている）。
- * 既定値は従来の挙動（見出し・基本は開く、その他・コールアウトは閉じる）と同じ。
+ * 既定値は従来の挙動（見出し・基本は開く、その他・コールアウトは閉じる）。My menu は、よく使うものを置く場所なので開くと同じ。
  */
 import type { SectionId } from "./toolbar-visibility.ts";
 
@@ -14,6 +14,7 @@ export const DEFAULT_PALETTE_OPEN_STATE: Readonly<PaletteOpenState> = {
   basic: true,
   more: false,
   callouts: false,
+  mymenu: true,
 };
 
 /** 保存データから開閉状態を取り出す。無い・壊れている項目は既定値に戻す。常に新しいオブジェクトを返す。 */

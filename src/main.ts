@@ -1,4 +1,4 @@
-import { App, Notice, Plugin, PluginSettingTab, MarkdownView, ItemView, Setting, WorkspaceLeaf, getLanguage, type SettingDefinition, type SettingDefinitionItem } from "obsidian";
+import { App, Modal, Notice, Plugin, PluginSettingTab, MarkdownView, ItemView, Setting, WorkspaceLeaf, getLanguage, moment, type SettingDefinition, type SettingDefinitionItem } from "obsidian";
 import { processMarkdownWithStats } from "./markdown-transformer";
 import { resolveLocale, t, tf, type Locale } from "./i18n";
 import { buildCalloutSnippet, CALLOUT_BUTTON_STYLE } from "./callouts";
@@ -10,6 +10,24 @@ import {
   CUSTOM_CALLOUT_ERROR_KEYS,
   type CustomCallout,
 } from "./custom-callouts";
+import {
+  DATE_FORMAT_PRESETS,
+  DEFAULT_DATE_FORMAT,
+  DEFAULT_TIME_FORMAT,
+  MY_SNIPPET_ERROR_KEYS,
+  TIME_FORMAT_PRESETS,
+  addMySnippet,
+  expandTemplate,
+  normalizeFormat,
+  normalizeMySnippets,
+  offsetToLineCh,
+  previewTemplate,
+  removeMySnippet,
+  updateMySnippet,
+  type MySnippet,
+  type MySnippetInput,
+} from "./my-snippets";
+import { DEFAULT_SECTION_ORDER, moveSection, normalizeSectionOrder } from "./section-order";
 import { DEFAULT_PALETTE_OPEN_STATE, normalizePaletteOpenState, type PaletteOpenState } from "./palette-open-state";
 import {
   DEFAULT_TOOLBAR_VISIBILITY,
@@ -39,6 +57,16 @@ interface MarkdownEasyEditorSettings extends ToolbarVisibilitySettings {
   customCallouts: Array<{ type: string; label: string }>;
   /** パレットの大メニューごとの開閉状態（次に開いたときも維持する）。 */
   paletteOpenSections: PaletteOpenState;
+  /** My menu のスニペット。登録順にパレットへ並ぶ。 */
+  mySnippets: MySnippet[];
+  /** {{date}} {{datetime}} の書式（Moment.js 形式）。 */
+  snippetDateFormat: string;
+  /** {{time}} {{datetime}} の書式（Moment.js 形式）。 */
+  snippetTimeFormat: string;
+  /** パレットの大メニューの並び順。 */
+  sectionOrder: SectionId[];
+  /** My menu の更新のお知らせを、既に出したか。 */
+  myMenuNoticeShown: boolean;
 }
 
 const DEFAULT_SETTINGS: MarkdownEasyEditorSettings = {
@@ -49,6 +77,11 @@ const DEFAULT_SETTINGS: MarkdownEasyEditorSettings = {
   optimizeReduceBold: true,
   customCallouts: [],
   paletteOpenSections: { ...DEFAULT_PALETTE_OPEN_STATE },
+  mySnippets: [],
+  snippetDateFormat: DEFAULT_DATE_FORMAT,
+  snippetTimeFormat: DEFAULT_TIME_FORMAT,
+  sectionOrder: [...DEFAULT_SECTION_ORDER],
+  myMenuNoticeShown: false,
 };
 
 /** トグルで表示する boolean 型の設定項目だけを取り出したキー。 */
@@ -66,6 +99,7 @@ type ToolbarAction =
   | { kind: "wrap"; id: string; marker: string; symbol: string; label: string; tip: string; shortcut: string }
   | { kind: "insert"; id: string; snippet: string; placeholder?: string; symbol: string; label: string; tip: string; shortcut: string }
   | { kind: "link"; id: string; symbol: string; label: string; tip: string; shortcut: string }
+  | { kind: "snippet"; id: string; template: string; symbol: string; label: string; tip: string; shortcut: string }
   | { kind: "callout"; id: string; calloutType: string; accentColor: string; titlePlaceholder: string; bodyPlaceholder: string; symbol: string; label: string; tip: string; shortcut: string };
 
 /** 表示対象のレベルだけ見出しボタンを作る（全レベル渡せば従来と同じ H1〜H6）。 */
@@ -125,6 +159,25 @@ function buildMoreButtons(locale: Locale): ReadonlyArray<ToolbarAction> {
   ];
 }
 
+/** Obsidian 同梱の moment で現在日時を整形する（型定義が呼び出し形を持たないため関数型に直す）。 */
+function formatNowWithMoment(format: string): string {
+  const m = moment as unknown as () => { format: (f: string) => string };
+  return m().format(format);
+}
+
+/** My menu のスニペットを、他のメニューと同じボタン形式に直す。説明にはテンプレートの冒頭 1 行を出す。 */
+function buildMySnippetButtons(snippets: ReadonlyArray<MySnippet>): ReadonlyArray<ToolbarAction> {
+  return snippets.map((snippet) => ({
+    kind: "snippet" as const,
+    id: `mysnippet-${snippet.id}`,
+    template: snippet.template,
+    symbol: "★",
+    label: snippet.label,
+    shortcut: previewTemplate(snippet.template),
+    tip: "",
+  }));
+}
+
 const VIEW_TYPE_TOOLBAR = "markdown-easy-editor-view";
 
 /** 記法パレットビュー */
@@ -150,7 +203,7 @@ class MarkdownToolbarView extends ItemView {
     container.empty();
     container.createEl("h3", { text: t("paletteTitle", locale), attr: { style: "margin-bottom: 10px; padding: 0 10px;" } });
 
-    const renderSection = (id: SectionId, title: string, buttons: ReadonlyArray<ToolbarAction>) => {
+    const renderSection = (id: SectionId, title: string, buttons: ReadonlyArray<ToolbarAction>, onAdd?: () => void) => {
       const details = container.createEl("details", { 
         attr: { style: "margin-bottom: 10px; border: 1px solid var(--background-modifier-border); border-radius: 4px; padding: 5px;" } 
       });
@@ -162,21 +215,38 @@ class MarkdownToolbarView extends ItemView {
         void this.plugin.saveSettings();
       });
 
-      details.createEl("summary", { 
+      const summary = details.createEl("summary", { 
         text: title, 
         attr: { style: "font-weight: bold; cursor: pointer; padding: 5px; opacity: 0.8;" } 
       });
+      // 見出しの端の小さな「＋」。他のボタンから離れているので誤タップしにくい
+      if (onAdd) {
+        const addButton = summary.createSpan({
+          text: "＋",
+          attr: {
+            style: "float: right; padding: 0 8px; cursor: pointer; font-weight: bold;",
+            "aria-label": t("tooltipMyMenuAdd", locale),
+            role: "button",
+          },
+        });
+        addButton.addEventListener("click", (evt) => {
+          // 見出しの開閉（details の標準動作）を起こさない
+          evt.preventDefault();
+          evt.stopPropagation();
+          onAdd();
+        });
+      }
 
       const sectionContent = details.createDiv({ attr: { style: "padding: 5px 0;" } });
       
       buttons.forEach((btn) => {
         const setting = new Setting(sectionContent)
           .setName(`${btn.symbol}  ${btn.label}`)
-          .setDesc(`${btn.shortcut} — ${btn.tip}`)
+          .setDesc(btn.tip ? `${btn.shortcut} — ${btn.tip}` : btn.shortcut)
           .addButton((button) => {
             button
               .setButtonText(t("applyButton", locale))
-              .setTooltip(`${btn.shortcut} — ${btn.tip}`)
+              .setTooltip(btn.tip ? `${btn.shortcut} — ${btn.tip}` : btn.shortcut)
               .onClick(() => {
                 this.plugin.applyToolbarAction(btn);
               });
@@ -208,7 +278,10 @@ class MarkdownToolbarView extends ItemView {
 
     // 設定で非表示にした大メニュー・見出しレベルは描画しない。
     // 設定が既定（すべて表示）なら、従来と同じ4メニュー・同じ順序・同じ開閉状態になる。
-    const visibleSections = resolveVisibleSections(this.plugin.settings);
+    const visibleSections = resolveVisibleSections(this.plugin.settings, {
+      order: this.plugin.settings.sectionOrder,
+      hasSnippets: this.plugin.settings.mySnippets.length > 0,
+    });
     if (visibleSections.length === 0) {
       container.createEl("p", {
         text: t("paletteAllHidden", locale),
@@ -241,8 +314,86 @@ class MarkdownToolbarView extends ItemView {
             buildCalloutButtons(locale, isDarkTheme, this.plugin.settings.customCallouts),
           );
           break;
+        case "mymenu":
+          renderSection(
+            id,
+            t("sectionMyMenu", locale),
+            buildMySnippetButtons(this.plugin.settings.mySnippets),
+            () => this.plugin.openMySnippetModal(),
+          );
+          break;
       }
     }
+  }
+}
+
+/** スニペットの追加・編集ウィンドウ。パレットの「＋」と設定画面の両方から開く。 */
+class MySnippetModal extends Modal {
+  constructor(
+    app: App,
+    private readonly plugin: MarkdownEasyEditorPlugin,
+    private readonly snippet: MySnippet | null,
+    private readonly onSaved?: () => void,
+  ) {
+    super(app);
+  }
+
+  onOpen(): void {
+    const locale = this.plugin.locale;
+    const { contentEl } = this;
+    contentEl.empty();
+    this.setTitle(t(this.snippet ? "modalMySnippetEditTitle" : "modalMySnippetAddTitle", locale));
+
+    let label = this.snippet?.label ?? "";
+    let template = this.snippet?.template ?? "";
+
+    new Setting(contentEl)
+      .setName(t("modalMySnippetLabel", locale))
+      .addText((text) => {
+        text
+          .setPlaceholder(t("settingMySnippetLabelPlaceholder", locale))
+          .setValue(label)
+          .onChange((value) => {
+            label = value;
+          });
+      });
+
+    contentEl.createDiv({ text: t("modalMySnippetTemplate", locale), cls: "setting-item-name" });
+    const textarea = contentEl.createEl("textarea", {
+      attr: {
+        rows: "8",
+        style: "width: 100%; margin: 6px 0; font-family: var(--font-monospace);",
+        placeholder: t("settingMySnippetTemplatePlaceholder", locale),
+      },
+    });
+    textarea.value = template;
+    textarea.addEventListener("input", () => {
+      template = textarea.value;
+    });
+    contentEl.createDiv({
+      text: t("settingMySnippetTokensDesc", locale),
+      cls: "setting-item-description",
+    });
+
+    new Setting(contentEl)
+      .addButton((button) => {
+        button
+          .setButtonText(t("modalMySnippetSave", locale))
+          .setCta()
+          .onClick(async () => {
+            const saved = await this.plugin.saveMySnippet(this.snippet?.id ?? null, { label, template });
+            if (!saved) return;
+            this.close();
+            this.onSaved?.();
+          });
+      })
+      .addButton((button) => {
+        button.setButtonText(t("modalMySnippetCancel", locale)).onClick(() => this.close());
+      });
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
   }
 }
 
@@ -316,6 +467,147 @@ class MarkdownEasyEditorSettingTab extends PluginSettingTab {
       PALETTE_TOGGLE_DEFINITIONS,
     );
     this.mountCustomCallouts(this.createCollapsible(content, t("settingCustomCalloutsHeading", locale)));
+    this.mountMyMenu(this.createCollapsible(content, t("settingMyMenuHeading", locale)));
+    this.mountSectionOrder(this.createCollapsible(content, t("settingSectionOrderHeading", locale), t("settingSectionOrderDesc", locale)));
+  }
+
+  /** 大メニューの並べ替え（上へ／下へ）。押したあとはこの領域だけ描き直す。 */
+  private mountSectionOrder(container: HTMLElement): void {
+    const locale = this.plugin.locale;
+    const redraw = () => {
+      container.empty();
+      this.mountSectionOrder(container);
+    };
+    const titleKeys: Record<SectionId, string> = {
+      headings: "sectionHeadings",
+      basic: "sectionBasic",
+      more: "sectionMore",
+      callouts: "sectionCallouts",
+      mymenu: "sectionMyMenu",
+    };
+    const order = this.plugin.settings.sectionOrder;
+    order.forEach((id, index) => {
+      new Setting(container)
+        .setName(t(titleKeys[id], locale))
+        .addExtraButton((button) => {
+          button
+            .setIcon("arrow-up")
+            .setTooltip(t("settingSectionMoveUp", locale))
+            .setDisabled(index === 0)
+            .onClick(async () => {
+              await this.plugin.moveSectionOrder(index, -1);
+              redraw();
+            });
+        })
+        .addExtraButton((button) => {
+          button
+            .setIcon("arrow-down")
+            .setTooltip(t("settingSectionMoveDown", locale))
+            .setDisabled(index === order.length - 1)
+            .onClick(async () => {
+              await this.plugin.moveSectionOrder(index, 1);
+              redraw();
+            });
+        });
+    });
+  }
+
+  /** My menu の説明・一覧・追加ボタン・日時の書式を container に描画する。変更後はこの領域だけ描き直す。 */
+  private mountMyMenu(container: HTMLElement): void {
+    const locale = this.plugin.locale;
+    const redraw = () => {
+      container.empty();
+      this.mountMyMenu(container);
+    };
+
+    new Setting(container).setDesc(t("settingMyMenuDesc", locale));
+
+    const snippets = this.plugin.settings.mySnippets;
+    if (snippets.length === 0) {
+      new Setting(container).setDesc(t("settingMyMenuEmpty", locale));
+    }
+    snippets.forEach((snippet) => {
+      new Setting(container)
+        .setName(snippet.label)
+        .setDesc(previewTemplate(snippet.template))
+        .addButton((button) => {
+          button.setButtonText(t("settingMySnippetEditButton", locale)).onClick(() => {
+            this.plugin.openMySnippetModal(snippet, redraw);
+          });
+        })
+        .addButton((button) => {
+          button
+            .setButtonText(t("settingMySnippetDeleteButton", locale))
+            .setWarning()
+            .onClick(async () => {
+              await this.plugin.deleteMySnippet(snippet.id);
+              redraw();
+            });
+        });
+    });
+
+    new Setting(container)
+      .setName(t("settingMySnippetAddName", locale))
+      .setDesc(t("settingMySnippetAddDesc", locale))
+      .addButton((button) => {
+        button
+          .setButtonText(t("settingMySnippetAddButton", locale))
+          .setCta()
+          .onClick(() => this.plugin.openMySnippetModal(undefined, redraw));
+      });
+
+    new Setting(container)
+      .setName(t("settingMySnippetTokensName", locale))
+      .setDesc(t("settingMySnippetTokensDesc", locale));
+
+    this.renderFormatSetting(container, "settingDateFormatName", "settingDateFormatDesc", "snippetDateFormat", DEFAULT_DATE_FORMAT, DATE_FORMAT_PRESETS);
+    this.renderFormatSetting(container, "settingTimeFormatName", "settingTimeFormatDesc", "snippetTimeFormat", DEFAULT_TIME_FORMAT, TIME_FORMAT_PRESETS);
+  }
+
+  /** 書式の入力欄。現在の日時でプレビューし、プリセットボタンで入力欄へ書き込む。 */
+  private renderFormatSetting(
+    container: HTMLElement,
+    nameKey: string,
+    descKey: string,
+    settingKey: "snippetDateFormat" | "snippetTimeFormat",
+    fallback: string,
+    presets: ReadonlyArray<string>,
+  ): void {
+    const locale = this.plugin.locale;
+    const setting = new Setting(container).setName(t(nameKey, locale)).setDesc(t(descKey, locale));
+    const preview = container.createDiv({ cls: "setting-item-description" });
+    preview.setCssProps({ padding: "0 0 8px 0" });
+
+    const showPreview = () => {
+      const format = normalizeFormat(this.plugin.settings[settingKey], fallback);
+      preview.setText(`${t("settingFormatPreview", locale)}${formatNowWithMoment(format)}`);
+    };
+
+    let input: { setValue: (value: string) => unknown } | null = null;
+    const apply = async (value: string) => {
+      this.plugin.settings[settingKey] = value;
+      await this.plugin.saveSettings();
+      showPreview();
+    };
+
+    setting.addText((text) => {
+      input = text;
+      text.setValue(this.plugin.settings[settingKey]).onChange(async (value) => {
+        await apply(value);
+      });
+    });
+
+    const presetRow = container.createDiv({ cls: "setting-item-description" });
+    presetRow.setCssProps({ display: "flex", flexWrap: "wrap", gap: "6px", padding: "0 0 8px 0" });
+    presetRow.createSpan({ text: t("settingFormatPresets", locale) });
+    for (const preset of presets) {
+      const btn = presetRow.createEl("button", { text: formatNowWithMoment(preset) });
+      btn.addEventListener("click", () => {
+        input?.setValue(preset);
+        void apply(preset);
+      });
+    }
+    showPreview();
   }
 
   /** display() 用：見出しをクリックで開閉できるグループを作り、中身の入れ物を返す。 */
@@ -510,6 +802,38 @@ class MarkdownEasyEditorSettingTab extends PluginSettingTab {
           },
         ],
       },
+      {
+        type: "page",
+        name: t("settingMyMenuHeading", locale),
+        desc: t("settingMyMenuDesc", locale),
+        items: [
+          {
+            name: t("settingMyMenuHeading", locale),
+            render: (setting) => {
+              const el = setting.settingEl;
+              el.empty();
+              el.setCssProps({ display: "block", border: "none" });
+              this.mountMyMenu(el.createDiv());
+            },
+          },
+        ],
+      },
+      {
+        type: "page",
+        name: t("settingSectionOrderHeading", locale),
+        desc: t("settingSectionOrderDesc", locale),
+        items: [
+          {
+            name: t("settingSectionOrderHeading", locale),
+            render: (setting) => {
+              const el = setting.settingEl;
+              el.empty();
+              el.setCssProps({ display: "block", border: "none" });
+              this.mountSectionOrder(el.createDiv());
+            },
+          },
+        ],
+      },
     ];
   }
 }
@@ -535,6 +859,11 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
     // 旧バージョンの保存データにはパレット表示のキーが無い。boolean 以外の壊れた値も含め、既定（表示）に戻す
     Object.assign(this.settings, normalizeToolbarVisibility(loaded));
     this.settings.paletteOpenSections = normalizePaletteOpenState(loaded?.paletteOpenSections);
+    this.settings.mySnippets = normalizeMySnippets(loaded?.mySnippets);
+    this.settings.snippetDateFormat = normalizeFormat(loaded?.snippetDateFormat, DEFAULT_DATE_FORMAT);
+    this.settings.snippetTimeFormat = normalizeFormat(loaded?.snippetTimeFormat, DEFAULT_TIME_FORMAT);
+    this.settings.sectionOrder = normalizeSectionOrder(loaded?.sectionOrder);
+    this.settings.myMenuNoticeShown = loaded?.myMenuNoticeShown === true;
     this.addSettingTab(new MarkdownEasyEditorSettingTab(this.app, this));
 
     this.registerView(
@@ -554,6 +883,17 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
       // activateToolbarView は内部で例外を捕捉するため、Promise は明示的に破棄する
       void this.activateToolbarView();
     });
+
+    // My menu の更新のお知らせ。一度だけ、クリックして閉じるまで出し続ける（duration 0）。
+    // 設定を一度も保存していない既存ユーザーと新規インストールは保存データだけでは区別できないため、
+    // どちらにも一度だけ出す。
+    if (!this.settings.myMenuNoticeShown) {
+      this.app.workspace.onLayoutReady(() => {
+        new Notice(t("noticeUpdatedMyMenu", this.locale), 0);
+      });
+      this.settings.myMenuNoticeShown = true;
+      await this.saveSettings();
+    }
 
     this.addCommand({
       id: "optimize-selected-markdown",
@@ -744,6 +1084,23 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
           );
         }
       }
+      else if (action.kind === "snippet") {
+        const { text, cursorOffset } = expandTemplate(action.template, {
+          selection,
+          formatNow: (format) => formatNowWithMoment(format),
+          dateFormat: normalizeFormat(this.settings.snippetDateFormat, DEFAULT_DATE_FORMAT),
+          timeFormat: normalizeFormat(this.settings.snippetTimeFormat, DEFAULT_TIME_FORMAT),
+        });
+        const startPos = editor.getCursor("from");
+        editor.replaceSelection(text);
+        if (cursorOffset !== null) {
+          const pos = offsetToLineCh(text, cursorOffset);
+          editor.setCursor({
+            line: startPos.line + pos.line,
+            ch: pos.line === 0 ? startPos.ch + pos.ch : pos.ch,
+          });
+        }
+      }
       else if (action.kind === "link") {
         const linkText = selection || t("linkTextDefault", this.locale);
         const url = "URL";
@@ -767,6 +1124,40 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
     if (markdownView.leaf) {
       this.app.workspace.setActiveLeaf(markdownView.leaf, { focus: true });
     }
+  }
+
+  /** スニペットを追加（id が null）または編集する。拒否したときは理由を通知して false を返す。 */
+  async saveMySnippet(id: string | null, input: MySnippetInput): Promise<boolean> {
+    const result =
+      id === null
+        ? addMySnippet(this.settings.mySnippets, input)
+        : updateMySnippet(this.settings.mySnippets, id, input);
+    if (!result.ok) {
+      new Notice(t(MY_SNIPPET_ERROR_KEYS[result.error], this.locale));
+      return false;
+    }
+    this.settings.mySnippets = result.snippets;
+    await this.saveSettings();
+    this.refreshToolbarViews();
+    return true;
+  }
+
+  async deleteMySnippet(id: string): Promise<void> {
+    this.settings.mySnippets = removeMySnippet(this.settings.mySnippets, id);
+    await this.saveSettings();
+    this.refreshToolbarViews();
+  }
+
+  /** 大メニューを上（-1）／下（+1）へ動かす。 */
+  async moveSectionOrder(index: number, direction: -1 | 1): Promise<void> {
+    this.settings.sectionOrder = moveSection(this.settings.sectionOrder, index, direction);
+    await this.saveSettings();
+    this.refreshToolbarViews();
+  }
+
+  /** スニペットの追加・編集ウィンドウを開く。保存したら onSaved を呼ぶ。 */
+  openMySnippetModal(snippet?: MySnippet, onSaved?: () => void): void {
+    new MySnippetModal(this.app, this, snippet ?? null, onSaved).open();
   }
 
   async saveSettings(): Promise<void> {

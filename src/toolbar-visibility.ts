@@ -9,7 +9,7 @@
  */
 
 /** 大メニュー（パレットのアコーディオン）の識別子。並び順はパレット上の順序と同じ。 */
-export const SECTION_IDS = ["headings", "basic", "more", "callouts"] as const;
+export const SECTION_IDS = ["headings", "basic", "more", "callouts", "mymenu"] as const;
 export type SectionId = (typeof SECTION_IDS)[number];
 
 /** 見出しボタンのレベル。 */
@@ -26,6 +26,7 @@ export interface ToolbarVisibilitySettings {
   showSectionBasic: boolean;
   showSectionMore: boolean;
   showSectionCallouts: boolean;
+  showSectionMyMenu: boolean;
   showHeadingH1: boolean;
   showHeadingH2: boolean;
   showHeadingH3: boolean;
@@ -41,6 +42,7 @@ export const DEFAULT_TOOLBAR_VISIBILITY: Readonly<ToolbarVisibilitySettings> = {
   showSectionBasic: true,
   showSectionMore: true,
   showSectionCallouts: true,
+  showSectionMyMenu: true,
   showHeadingH1: true,
   showHeadingH2: true,
   showHeadingH3: true,
@@ -55,6 +57,7 @@ export const SECTION_VISIBILITY_KEYS: Readonly<Record<SectionId, ToolbarVisibili
   basic: "showSectionBasic",
   more: "showSectionMore",
   callouts: "showSectionCallouts",
+  mymenu: "showSectionMyMenu",
 };
 
 /** 見出しレベル → 設定キー。 */
@@ -67,7 +70,7 @@ export const HEADING_VISIBILITY_KEYS: Readonly<Record<HeadingLevel, ToolbarVisib
   6: "showHeadingH6",
 };
 
-/** 設定タブに並べる順序：大メニュー 4 つ → 見出し H1〜H6。 */
+/** 設定タブに並べる順序：大メニュー 5 つ → 見出し H1〜H6。 */
 export const TOOLBAR_VISIBILITY_KEYS_IN_ORDER: ReadonlyArray<ToolbarVisibilityKey> = [
   ...SECTION_IDS.map((id) => SECTION_VISIBILITY_KEYS[id]),
   ...HEADING_LEVELS.map((level) => HEADING_VISIBILITY_KEYS[level]),
@@ -104,14 +107,27 @@ export function visibleHeadingLevels(visibility: ToolbarVisibilitySettings): Hea
   return HEADING_LEVELS.filter((level) => visibility[HEADING_VISIBILITY_KEYS[level]]);
 }
 
+export interface ResolveSectionsOptions {
+  /** 大メニューの並び順。省略時は既定（SECTION_IDS）の順。 */
+  order?: ReadonlyArray<SectionId>;
+  /** My menu に登録済みのスニペットがあるか。無いうちは My menu を出さない（既存の見た目を変えないため）。 */
+  hasSnippets?: boolean;
+}
+
 /**
  * パレットに実際に描画する大メニュー（パレット上の順序）。
  * 見出しメニューは、メニュー自体が表示でも全レベルが非表示なら中身が空になるため描画しない。
+ * My menu は、スニペットが 1 件以上あるときだけ描画する。
  */
-export function resolveVisibleSections(visibility: ToolbarVisibilitySettings): SectionId[] {
-  return SECTION_IDS.filter((id) => {
+export function resolveVisibleSections(
+  visibility: ToolbarVisibilitySettings,
+  options: ResolveSectionsOptions = {},
+): SectionId[] {
+  const order = options.order ?? SECTION_IDS;
+  return order.filter((id) => {
     if (!visibility[SECTION_VISIBILITY_KEYS[id]]) return false;
     if (id === "headings") return visibleHeadingLevels(visibility).length > 0;
+    if (id === "mymenu") return options.hasSnippets === true;
     return true;
   });
 }
