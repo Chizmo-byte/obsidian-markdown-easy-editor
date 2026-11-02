@@ -29,10 +29,10 @@ test("既定値：すべて表示（既存ユーザーのパレットは変わ�
   }
 });
 
-test("既定値：大メニュー4つ＋見出し6レベル＝10項目が定義されている", () => {
-  assert.equal(Object.keys(DEFAULT_TOOLBAR_VISIBILITY).length, 10);
-  assert.equal(TOOLBAR_VISIBILITY_KEYS_IN_ORDER.length, 10);
-  assert.equal(new Set(TOOLBAR_VISIBILITY_KEYS_IN_ORDER).size, 10, "キーが重複している");
+test("既定値：大メニュー5つ＋見出し6レベル＝11項目が定義されている", () => {
+  assert.equal(Object.keys(DEFAULT_TOOLBAR_VISIBILITY).length, 11);
+  assert.equal(TOOLBAR_VISIBILITY_KEYS_IN_ORDER.length, 11);
+  assert.equal(new Set(TOOLBAR_VISIBILITY_KEYS_IN_ORDER).size, 11, "キーが重複している");
 });
 
 test("既定値：すべてのキーが設定キーに対応している", () => {
@@ -50,6 +50,7 @@ test("既定値：設定タブの並び順は大メニュー → H1〜H6", () =>
     "showSectionBasic",
     "showSectionMore",
     "showSectionCallouts",
+    "showSectionMyMenu",
     "showHeadingH1",
     "showHeadingH2",
     "showHeadingH3",
@@ -206,4 +207,49 @@ test("文言：大メニューの表示名は、パレット上のセクショ�
   assert.ok(t("settingShowSectionBasicName", "en").includes(t("sectionBasic", "en")));
   assert.ok(t("settingShowSectionMoreName", "en").includes(t("sectionMore", "en")));
   assert.ok(t("settingShowSectionCalloutsName", "en").includes(t("sectionCallouts", "en")));
+});
+
+// --- My menu（0.7.0）---
+
+test("My menu：スニペットが無いうちは出さない（既存の見た目を変えない）", () => {
+  assert.deepEqual(resolveVisibleSections(DEFAULT_TOOLBAR_VISIBILITY), ["headings", "basic", "more", "callouts"]);
+  assert.deepEqual(resolveVisibleSections(DEFAULT_TOOLBAR_VISIBILITY, { hasSnippets: false }), [
+    "headings",
+    "basic",
+    "more",
+    "callouts",
+  ]);
+});
+
+test("My menu：スニペットがあれば既定で一番下に出る", () => {
+  assert.deepEqual(resolveVisibleSections(DEFAULT_TOOLBAR_VISIBILITY, { hasSnippets: true }), [
+    "headings",
+    "basic",
+    "more",
+    "callouts",
+    "mymenu",
+  ]);
+});
+
+test("My menu：非表示設定ならスニペットがあっても出さない", () => {
+  const visibility = withVisibility({ showSectionMyMenu: false });
+  assert.ok(!resolveVisibleSections(visibility, { hasSnippets: true }).includes("mymenu"));
+});
+
+test("並び順：order に従って並び、非表示のものは除かれる", () => {
+  const order = ["mymenu", "callouts", "more", "basic", "headings"] as const;
+  assert.deepEqual(resolveVisibleSections(DEFAULT_TOOLBAR_VISIBILITY, { order, hasSnippets: true }), [
+    "mymenu",
+    "callouts",
+    "more",
+    "basic",
+    "headings",
+  ]);
+  const hidden = withVisibility({ showSectionMore: false });
+  assert.deepEqual(resolveVisibleSections(hidden, { order, hasSnippets: false }), ["callouts", "basic", "headings"]);
+});
+
+test("文言：My menu の表示トグルの名前に、パレットの見出し名が含まれる", () => {
+  assert.ok(t("settingShowSectionMyMenuName", "ja").includes(t("sectionMyMenu", "ja")));
+  assert.ok(t("settingShowSectionMyMenuName", "en").includes(t("sectionMyMenu", "en")));
 });

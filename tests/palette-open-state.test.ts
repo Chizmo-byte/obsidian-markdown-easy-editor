@@ -4,8 +4,14 @@ import assert from "node:assert/strict";
 import { DEFAULT_PALETTE_OPEN_STATE, normalizePaletteOpenState } from "../src/palette-open-state.ts";
 import { SECTION_IDS } from "../src/toolbar-visibility.ts";
 
-test("既定値は従来の開閉状態（見出し・基本は開、その他・コールアウトは閉）", () => {
-  assert.deepEqual(DEFAULT_PALETTE_OPEN_STATE, { headings: true, basic: true, more: false, callouts: false });
+test("既定値は従来の開閉状態（見出し・基本は開、その他・コールアウトは閉）＋My menuは開", () => {
+  assert.deepEqual(DEFAULT_PALETTE_OPEN_STATE, {
+    headings: true,
+    basic: true,
+    more: false,
+    callouts: false,
+    mymenu: true,
+  });
 });
 
 test("既定値のキーは大メニューの識別子と一致する", () => {
@@ -24,6 +30,7 @@ test("保存された値は反映され、欠けた項目だけ既定値にな�
     basic: true,
     more: true,
     callouts: false,
+    mymenu: true,
   });
 });
 
