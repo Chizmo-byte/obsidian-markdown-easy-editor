@@ -30,6 +30,21 @@ Insert Obsidian's colorful callout boxes (Note, Tip, Important, Warning, Danger,
 
 **Need a callout type that isn't listed?** Open **Settings → Markdown Easy Editor → Advanced customization** to register your own custom callouts (a type name and a label). They'll appear in this panel right after the 12 built-in ones and insert the same `> [!type] label` syntax.
 
+### ⭐ My menu
+
+Register your own snippets (frequently used text or syntax) and insert them from the **My menu** section of the palette with one click. My menu appears at the bottom of the palette as soon as you have at least one snippet; a small **＋** on its header adds more.
+
+Templates can contain placeholders:
+
+| Placeholder | Meaning |
+|---|---|
+| `{{cursor}}` | Where the cursor lands after inserting |
+| `{{selection}}` | The currently selected text |
+| `{{date}}` `{{time}}` `{{datetime}}` | Current date / time (formats are set in the settings) |
+| `{{date:FORMAT}}` | A date in a format you write directly, e.g. `{{date:YYYY/MM/DD}}` |
+
+Set up snippets, date/time formats (Moment.js, with a live preview) and the order of the palette menus in **Settings → Markdown Easy Editor → My menu**. The **Add samples** button there registers a few ready-made snippets to try.
+
 ### ✨ Optimize Selected Markdown
 
 Select any text and run **Optimize Selected Markdown** from the command palette. This cleans up common issues in Markdown that wasn't originally written for Obsidian — for example, text copied from an AI assistant's response:
@@ -105,6 +120,7 @@ Major updates only. Full details are on the [Releases](https://github.com/Chizmo
 
 | Version | Highlights |
 |---|---|
+| 0.7.0 | **My menu**: register your own snippets (with `{{date}}`, `{{time}}`, `{{selection}}`, `{{cursor}}` placeholders and custom date/time formats) and insert them from the palette; reorder palette menus; sample snippets to get started |
 | 0.6.0 | Show/hide whole palette menus and individual heading levels (H1–H6); the palette remembers which menus are open; settings reorganized into Optimize / Palette display / Custom callouts; fixed custom callouts not being editable on Obsidian 1.13+ |
 | 0.5.0 | Custom callouts: register your own callout types and use them from the palette (0.5.1–0.5.2: Community review compatibility fixes) |
 | 0.4.0 | Individual on/off toggles for Optimize's transformations (wikilinks, block references, AI intro phrases, excessive bold) |
