@@ -216,9 +216,9 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     settingMySnippetTokensDesc:
       "{{cursor}} cursor position / {{selection}} the selected text / {{date}} {{time}} {{datetime}} the current date and time / {{date:FORMAT}} a date with its own format (e.g. {{date:YYYY/MM/DD}}).",
     settingDateFormatName: "Date format",
-    settingDateFormatDesc: "Used by {{date}} and {{datetime}}. Moment.js format (e.g. YYYY-MM-DD, dddd for the weekday).",
+    settingDateFormatDesc: "How {{date}} and {{datetime}} are written when a snippet is inserted (it does not change anything else). Moment.js format, e.g. YYYY-MM-DD; dddd for the weekday.",
     settingTimeFormatName: "Time format",
-    settingTimeFormatDesc: "Used by {{time}} and {{datetime}}. Moment.js format (e.g. HH:mm).",
+    settingTimeFormatDesc: "How {{time}} and {{datetime}} are written when a snippet is inserted (it does not change anything else). Moment.js format, e.g. HH:mm.",
     settingFormatPreview: "Now: ",
     settingFormatPresets: "Presets",
     settingSectionOrderHeading: "Menu order",
@@ -238,6 +238,12 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     noticeMySnippetTemplateTooLong: "The template is too long (2000 characters max).",
     noticeMySnippetTooMany: "You can register up to 50 snippets.",
     noticeMySnippetNotFound: "That snippet no longer exists.",
+    settingMySnippetSamplesName: "Add sample snippets",
+    settingMySnippetSamplesDesc:
+      "Adds a few ready-made snippets (daily heading, timestamp note, quote, callout wrapper, diary) so you can try My menu. Ones you already have are skipped. You can edit or delete them afterwards.",
+    settingMySnippetSamplesButton: "Add samples",
+    noticeMySnippetSamplesAdded: "Added {count} sample snippet(s).",
+    noticeMySnippetSamplesNone: "No samples were added (they are already registered, or the limit was reached).",
     noticeUpdatedMyMenu:
       "Markdown Easy Editor 0.7.0: you can now make your own menu. Settings → Markdown Easy Editor → My menu",
   },
@@ -437,9 +443,9 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     settingMySnippetTokensDesc:
       "{{cursor}} カーソル位置 ／ {{selection}} 選択中のテキスト ／ {{date}} {{time}} {{datetime}} 現在の日付・時刻 ／ {{date:書式}} 書式を直接指定した日付（例：{{date:YYYY/MM/DD}}）",
     settingDateFormatName: "日付の書式",
-    settingDateFormatDesc: "{{date}} と {{datetime}} で使います。Moment.js の書式です（例：YYYY-MM-DD、曜日は dddd）。",
+    settingDateFormatDesc: "スニペットを挿入するとき、{{date}} と {{datetime}} がどんな書き方で入るかを決めます（ほかの場所には影響しません）。Moment.js の書式です（例：YYYY-MM-DD、曜日は dddd）。",
     settingTimeFormatName: "時刻の書式",
-    settingTimeFormatDesc: "{{time}} と {{datetime}} で使います。Moment.js の書式です（例：HH:mm）。",
+    settingTimeFormatDesc: "スニペットを挿入するとき、{{time}} と {{datetime}} がどんな書き方で入るかを決めます（ほかの場所には影響しません）。Moment.js の書式です（例：HH:mm）。",
     settingFormatPreview: "今の日時：",
     settingFormatPresets: "候補",
     settingSectionOrderHeading: "メニューの並び順",
@@ -459,6 +465,12 @@ export const STRINGS: Record<Locale, Record<string, string>> = {
     noticeMySnippetTemplateTooLong: "テンプレートが長すぎます（2000文字まで）。",
     noticeMySnippetTooMany: "登録できるスニペットは50件までです。",
     noticeMySnippetNotFound: "このスニペットは既に存在しません。",
+    settingMySnippetSamplesName: "サンプルを追加",
+    settingMySnippetSamplesDesc:
+      "お試し用のスニペット（今日の見出し・時刻つきメモ・引用・コールアウトで囲む・日記）をまとめて登録します。同じ名前のものは追加されません。追加後に編集・削除できます。",
+    settingMySnippetSamplesButton: "サンプルを追加",
+    noticeMySnippetSamplesAdded: "サンプルを{count}件追加しました。",
+    noticeMySnippetSamplesNone: "追加できるサンプルがありませんでした（登録済み、または上限に達しています）。",
     noticeUpdatedMyMenu:
       "Markdown Easy Editor 0.7.0：自分専用のメニューを作れます。設定 → Markdown Easy Editor → My menu",
   },

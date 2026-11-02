@@ -239,3 +239,31 @@ test("文言：エラー通知のキーが日英とも存在する", () => {
     assert.notEqual(t(key, "ja"), key);
   }
 });
+
+test("getSampleSnippets: 日英とも5件で、すべて検証を通る", async () => {
+  const { getSampleSnippets, addMySnippet } = await import("../src/my-snippets.ts");
+  for (const lang of ["ja", "en"] as const) {
+    const samples = getSampleSnippets(lang);
+    assert.equal(samples.length, 5);
+    let list: Parameters<typeof addMySnippet>[0] = [];
+    for (const sample of samples) {
+      const result = addMySnippet(list, sample);
+      assert.equal(result.ok, true);
+      if (result.ok) list = result.snippets;
+    }
+  }
+});
+
+test("addSampleSnippets: 同名はスキップし、上限を超えたら止まる", async () => {
+  const { getSampleSnippets, addSampleSnippets } = await import("../src/my-snippets.ts");
+  const samples = getSampleSnippets("ja");
+  const first = addSampleSnippets([], samples);
+  assert.equal(first.added, 5);
+  const second = addSampleSnippets(first.snippets, samples);
+  assert.equal(second.added, 0);
+  assert.equal(second.snippets.length, 5);
+  const full = Array.from({ length: 49 }, (_, i) => ({ id: `x${i}`, label: `n${i}`, template: "t" }));
+  const limited = addSampleSnippets(full, samples);
+  assert.equal(limited.added, 1);
+  assert.equal(limited.snippets.length, 50);
+});

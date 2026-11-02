@@ -84,6 +84,44 @@ export function addMySnippet(
   return { ok: true, snippets: [...existing, { id: makeId(existing), ...checked.value }] };
 }
 
+/** 設定画面の「サンプルを追加」で登録する、お試し用のスニペット。 */
+export function getSampleSnippets(lang: "ja" | "en"): MySnippetInput[] {
+  if (lang === "ja") {
+    return [
+      { label: "今日の見出し", template: "## {{date}}\n{{cursor}}" },
+      { label: "時刻つきメモ", template: "- {{time}} {{cursor}}" },
+      { label: "選択を引用に", template: "> {{selection}}\n>\n> — {{cursor}}" },
+      { label: "選択をコールアウトで囲む", template: "> [!note] {{cursor}}\n> {{selection}}" },
+      { label: "日記", template: "## {{date:YYYY-MM-DD（ddd）}}\n\n### やったこと\n- {{cursor}}\n\n### 気づき\n- " },
+    ];
+  }
+  return [
+    { label: "Today's heading", template: "## {{date}}\n{{cursor}}" },
+    { label: "Timestamp note", template: "- {{time}} {{cursor}}" },
+    { label: "Quote selection", template: "> {{selection}}\n>\n> — {{cursor}}" },
+    { label: "Wrap in callout", template: "> [!note] {{cursor}}\n> {{selection}}" },
+    { label: "Diary", template: "## {{date:YYYY-MM-DD (ddd)}}\n\n### Done\n- {{cursor}}\n\n### Notes\n- " },
+  ];
+}
+
+/** サンプルを追加する。同じ名前が既にあるものと、上限を超える分は飛ばす。 */
+export function addSampleSnippets(
+  existing: ReadonlyArray<MySnippet>,
+  samples: ReadonlyArray<MySnippetInput>,
+  makeId: (existing: ReadonlyArray<MySnippet>) => string = generateSnippetId,
+): { snippets: MySnippet[]; added: number } {
+  let snippets: MySnippet[] = [...existing];
+  let added = 0;
+  for (const sample of samples) {
+    if (snippets.some((item) => item.label === sample.label)) continue;
+    const result = addMySnippet(snippets, sample, makeId);
+    if (!result.ok) break;
+    snippets = result.snippets;
+    added += 1;
+  }
+  return { snippets, added };
+}
+
 /** id のスニペットの名前・テンプレートを差し替えた新しい配列を返す（位置は変えない）。 */
 export function updateMySnippet(
   existing: ReadonlyArray<MySnippet>,

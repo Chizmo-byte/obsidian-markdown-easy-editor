@@ -17,6 +17,8 @@ import {
   MY_SNIPPET_ERROR_KEYS,
   TIME_FORMAT_PRESETS,
   addMySnippet,
+  addSampleSnippets,
+  getSampleSnippets,
   expandTemplate,
   normalizeFormat,
   normalizeMySnippets,
@@ -347,16 +349,19 @@ class MySnippetModal extends Modal {
     let label = this.snippet?.label ?? "";
     let template = this.snippet?.template ?? "";
 
-    new Setting(contentEl)
-      .setName(t("modalMySnippetLabel", locale))
-      .addText((text) => {
-        text
-          .setPlaceholder(t("settingMySnippetLabelPlaceholder", locale))
-          .setValue(label)
-          .onChange((value) => {
-            label = value;
-          });
-      });
+    // 名前欄はテンプレート欄と同じ幅で、ラベルの下に置く
+    contentEl.createDiv({ text: t("modalMySnippetLabel", locale), cls: "setting-item-name" });
+    const labelInput = contentEl.createEl("input", {
+      type: "text",
+      attr: {
+        style: "width: 100%; margin: 6px 0 14px;",
+        placeholder: t("settingMySnippetLabelPlaceholder", locale),
+      },
+    });
+    labelInput.value = label;
+    labelInput.addEventListener("input", () => {
+      label = labelInput.value;
+    });
 
     contentEl.createDiv({ text: t("modalMySnippetTemplate", locale), cls: "setting-item-name" });
     const textarea = contentEl.createEl("textarea", {
@@ -554,6 +559,21 @@ class MarkdownEasyEditorSettingTab extends PluginSettingTab {
           .setButtonText(t("settingMySnippetAddButton", locale))
           .setCta()
           .onClick(() => this.plugin.openMySnippetModal(undefined, redraw));
+      });
+
+    new Setting(container)
+      .setName(t("settingMySnippetSamplesName", locale))
+      .setDesc(t("settingMySnippetSamplesDesc", locale))
+      .addButton((button) => {
+        button.setButtonText(t("settingMySnippetSamplesButton", locale)).onClick(async () => {
+          const added = await this.plugin.addSampleMySnippets();
+          new Notice(
+            added > 0
+              ? t("noticeMySnippetSamplesAdded", locale).replace("{count}", String(added))
+              : t("noticeMySnippetSamplesNone", locale),
+          );
+          if (added > 0) redraw();
+        });
       });
 
     new Setting(container)
@@ -1140,6 +1160,16 @@ export default class MarkdownEasyEditorPlugin extends Plugin {
     await this.saveSettings();
     this.refreshToolbarViews();
     return true;
+  }
+
+  /** サンプルのスニペットをまとめて追加し、追加できた件数を返す。 */
+  async addSampleMySnippets(): Promise<number> {
+    const result = addSampleSnippets(this.settings.mySnippets, getSampleSnippets(this.locale === "ja" ? "ja" : "en"));
+    if (result.added === 0) return 0;
+    this.settings.mySnippets = result.snippets;
+    await this.saveSettings();
+    this.refreshToolbarViews();
+    return result.added;
   }
 
   async deleteMySnippet(id: string): Promise<void> {
